@@ -1,0 +1,16 @@
+thermo_converter:
+  container: "/hps/nobackup2/proteomics/trfp.simg"
+  memory: 4  # GB, multiplied by the number of attempts
+  maxRetries: 3
+jmzqc:
+  container: "/hps/nobackup2/proteomics/jmzqc.simg"
+  memory: 4  # GB, multiplied by the number of attempts
+pymzqc:
+  container: "/hps/nobackup2/proteomics/pymzqc.simg"
+  memory: 4  # GB, multiplied by the number of attempts
+rmzqc:
+  container: "/hps/nobackup2/proteomics/rmzqc.simg"
+  memory: 4
+report:
+  container: "/hps/nobackup2/proteomics/python-r:bioc-py3-tinytex-qc_plus_msstats.simg"
+  memory: 4  # GB, multiplied by the number of attempts

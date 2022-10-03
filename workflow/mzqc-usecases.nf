@@ -9,10 +9,10 @@
 -------------------------------------------------------------------------------
 Pipeline overview:
  - 0:   Converting the RAW data into mzML file
- - 1:   Extract window setting and create/optimise library-assay
- - 2:   OpenSWATH analysis
- - 3:   Pyprophet model merging, training, scoring, and export
- - 4:   TRIC alignment
+ - 1:   jmzqc squeezes the necessary details out of a mzML file
+ - 2:   pymzqc sifts the spectra for known contaminants
+ - 3:   rmzqc devises the iRT calibration
+ - 4:   a report appears
 -------------------------------------------------------------------------------
 
 */
@@ -43,7 +43,7 @@ if (params.run){
 /*
  * Process definitions
  */
-process rawCONVERT {
+process rawfileconversion {
     container "${params.thermo_converter.container}"
     memory { params.thermo_converter.memory.GB * task.attempt }
     errorStrategy 'retry'

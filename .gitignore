@@ -1,0 +1,7 @@
+**/.nextflow
+**/work
+**/.nextflow.log*
+**/*.simg
+
+test\ data/
+PRIDE-Contaminants/

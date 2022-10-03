@@ -1,0 +1,14 @@
+flowchart TD
+    p0((Channel.fromPath))
+    p1[rawfileconversion]
+    p2(( ))
+    p3[jmzqc]
+    p4(( ))
+    p5[pymzqc]
+    p6(( ))
+    p0 -->|run_channel| p1
+    p1 -->|mzml_channel_pt1| p3
+    p1 -->|mzml_channel_pt2| p5
+    p1 -->|mzml_channel_pt3| p2
+    p3 -->|mzqc_channel_pt1| p4
+    p5 -->|mzqc_channel_pt2| p6

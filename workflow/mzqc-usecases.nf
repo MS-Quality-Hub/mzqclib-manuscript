@@ -1,5 +1,5 @@
 #!/usr/bin/env nextflow
-
+nextflow.enable.dsl = 1
 /*
 ===============================================================================
             mzqc-usecase workflow v0.0.1
@@ -39,6 +39,10 @@ if (params.run){
     println("Analysing ${params.run}!")
     run_channel = Channel.fromPath( "${params.run}" )
 }
+else{
+    helpMessage()
+    exit 0
+}
 
 /*
  * Process definitions
@@ -53,11 +57,16 @@ process rawfileconversion {
     file raw from run_channel
 
     output:
-    file '*.mzML' into mzml_channel
+    file "${raw.baseName}.mzML" into mzml_channel_pt1,mzml_channel_pt2,mzml_channel_pt3
 
     script:
     """
     ThermoRawFileParser.sh -i ${raw} -o ${raw.baseName}.mzML
+	"""
+	
+	stub:
+	"""
+	touch ${raw.baseName}.mzML
     """
 }
 
@@ -68,16 +77,20 @@ process jmzqc {
     errorStrategy 'retry'
     
     input:
-    file mzml from mzml_channel
+    file mzml from mzml_channel_pt1
 
     output:
-    file('*.mzqc') into mzqc_channel
-    file('*.mztab') into mztab_channel
-    file(mzml) into mzml_channel
+    file "${mzml.baseName}.mzqc" into mzqc_channel_pt1
+    //file('test.mztab') into mztab_channel_pt1
 
     script:
     """
     java -jar decimator_of_msruns.jar --in ${mzml} --out ${mzml.baseName}.mzqc --extra ${mzml.baseName}.mztab
+	"""
+	
+	stub:
+	"""
+	touch ${raw.baseName}.mzqc ${raw.baseName}.mztab
     """
 }
 
@@ -88,17 +101,20 @@ process pymzqc {
     errorStrategy 'retry'
 
     input:
-    file mzml from mzml_channel
-    file mzqc from mzqc_channel
+    file mzml from mzml_channel_pt2
 
     output:
-    file('*.mzqc') into mzqc_channel
-    file('*.mztab') into mztab_channel
-    file(mzml) into mzml_channel
+    file "${mzml.baseName}.mzqc" into mzqc_channel_pt2
+    //file('test.mztab') into mztab_channel_pt2
 
     script:
     """
-    python3 spectre_of_spectra.py --in ${mzml} --mzqc ${mzqc} --out ${mzqc} --extra ${mzml.baseName}.mztab
+    python3 spectre_of_spectra.py --in ${mzml} --out ${mzml.baseName}.mzqc --mzqc ${mzqc} --extra ${mzml.baseName}.mztab
+	"""
+	
+	stub:
+	"""
+	touch test.mzqc test.mztab
     """
 }
 
@@ -110,16 +126,20 @@ process rmzqc {
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.mzqc"
 
     input:
-    file mzml from mzml_channel
-    file mzqc from mzqc_channel
+    file mzqc from mzqc_channel_pt2
+    file mzml from mzml_channel_pt3
 
     output:
-    file('*.mzqc') into mzqc_channel
-    file('*.mztab') into mztab_channel
-    file(mzml) into mzml_channel
+    file "${mzml.baseName}.mzqc" into mzqc_channel_pt3
+    //file('test.mztab') into mztab_channel_pt3
 
     """
-    Rscript retention_rectifier.R --in ${mzml} --out ${mzml.baseName}.mzqc--mzqc ${mzqc} --out ${mzqc} --extra ${mzml.baseName}.mztab
+    Rscript retention_rectifier.R --in ${mzml} --out ${mzml.baseName}.mzqc --mzqc ${mzqc} --extra ${mzml.baseName}.mztab
+	"""
+	
+	stub:
+	"""
+	touch test.mzqc test.mztab
     """
 }
 
@@ -131,7 +151,7 @@ process report {
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.pdf"
 
     input:
-    file mzqc from mzqc_channel
+    file mzqc from mzqc_channel_pt3
 
     output:
     file('*.pdf') into report_channel
@@ -139,5 +159,10 @@ process report {
     script:
     """
     markup_magic.sh -in ${mzqc} -out ${mzqc.baseName}.pdf
+	"""
+	
+	stub:
+	"""
+	touch test.pdf
     """
 }

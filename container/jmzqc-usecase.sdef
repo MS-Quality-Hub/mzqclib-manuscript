@@ -17,5 +17,5 @@ includecmd: yes
 	mvn package
 	# 'deploy'
 	mkdir /opt/jmzqc_usecase/bin
-	mv /opt/jmzqc_usecase/target/jmzqc-usecase-*.jar /opt/jmzqc_usecase/bin/
+	mv /opt/jmzqc_usecase/target/jmzqc-usecase-*-cli.jar /opt/jmzqc_usecase/bin/
 	chmod ugo+x /opt/jmzqc_usecase/bin/*

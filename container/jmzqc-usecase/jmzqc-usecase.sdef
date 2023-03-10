@@ -1,0 +1,22 @@
+Bootstrap: docker
+From: maven:latest
+
+includecmd: yes
+%environment
+	export PATH=/opt/jmzqc-usecase/bin/:${PATH}
+	
+%post
+	# install build dependencies
+	apt update
+	apt install -q --assume-yes wget unzip xauth git vim
+	# clone repo
+	jmzqc_usecase_url=https://github.com/nilshoffmann/jmzqc-usecase.git
+	git clone ${jmzqc_usecase_url} /opt/jmzqc_usecase/
+	cd /opt/jmzqc_usecase/
+	# build
+	mvn package
+	#./mvnw jib:dockerBuild
+	# 'deploy'
+	mkdir /opt/jmzqc_usecase/bin
+	mv /opt/jmzqc_usecase/target/jmzqc-usecase-*.jar /opt/jmzqc_usecase/bin/
+	chmod ugo+x /opt/jmzqc_usecase/bin/*

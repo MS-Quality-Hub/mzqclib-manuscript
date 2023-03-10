@@ -2,6 +2,7 @@
 **/work
 **/.nextflow.log*
 **/*.simg
+**/*.mzML
 
-test\ data/
+test_data/
 PRIDE-Contaminants/

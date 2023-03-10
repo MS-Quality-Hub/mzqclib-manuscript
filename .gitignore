@@ -3,6 +3,9 @@
 **/.nextflow.log*
 **/*.simg
 **/*.mzML
+**/*.gz
+**/*.sptxt
+**/*.pepidx
 
 test_data/
 PRIDE-Contaminants/

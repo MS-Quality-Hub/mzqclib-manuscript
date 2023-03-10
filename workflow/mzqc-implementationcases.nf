@@ -37,7 +37,7 @@ if (params.help){
 
 if (params.run){
     println("Analysing ${params.run}!")
-    run_channel = Channel.fromPath( "${params.run}" )
+    raw_file = file(params.run)
 }
 else{
     helpMessage()
@@ -52,16 +52,19 @@ process rawfileconversion {
     memory { params.thermo_converter.memory.GB * task.attempt }
     errorStrategy 'retry'
     maxRetries { params.thermo_converter.maxRetries }
-
-    input:
-    file raw from run_channel
-
+    
+	input:
+    //file raw_file from "${params.raw_file}"
+	
     output:
-    file "${raw.baseName}.mzML" into mzml_channel_pt1,mzml_channel_pt2,mzml_channel_pt3
-
+    file "${raw_file.baseName}.mzML" into mzml_channel_pt1,mzml_channel_pt2,mzml_channel_pt3
+    file "${raw_file.baseName}.mgf" into mgf_channel
+ 
+    script:
     """
-    ThermoRawFileParser.sh -i ${raw} -o ${raw.baseName}.mzML
-	"""
+    ThermoRawFileParser.sh -i=$raw_file -f=2 -b ${raw_file.baseName}.mzML
+    ThermoRawFileParser.sh -i=$raw_file -f=0 -b ${raw_file.baseName}.mgf
+    """
 }
 
 
@@ -74,50 +77,50 @@ process jmzqc {
     file mzml from mzml_channel_pt1
 
     output:
-    file "${mzml.baseName}.mzqc" into mzqc_channel_pt1
+    file "${mzml.baseName}.jmzqc.mzqc" into mzqc_channel_pt1
+    //file('test.mztab') into mztab_channel_pt1
 
+    script:
     """
-	jmzqc-cli.sh -f ${mzml} -o ${mzml.baseName}.mzqc
+	jmzqc-cli.sh -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
     """
 }
-
-
-/* process pymzqc {
- *     container "${params.pymzqc.container}"
- *     memory { params.pymzqc.memory.GB * task.attempt }
- *     errorStrategy 'retry'
- * 
- *     input:
- *     file mzml from mzml_channel_pt2
- * 
- *     output:
- *     file "${mzml.baseName}.mzqc" into mzqc_channel_pt2
- * 
- *     """
- *     python3 spectre_of_spectra.py --in ${mzml} --out ${mzml.baseName}.mzqc
- * 	"""
- * }
- */
 
 
 process rmzqc {
     container "${params.rmzqc.container}"
     memory { params.rmzqc.memory.GB * task.attempt }
     errorStrategy 'retry'
-    publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.mzqc"
 
     input:
+    file mzml from mzml_channel_pt2
     file mzqc from mzqc_channel_pt1
-    file mzml from mzml_channel_pt3
 
     output:
-    file "${mzml.baseName}.mzqc" into mzqc_channel_pt3
-    //file('test.mztab') into mztab_channel_pt3
+    file "${mzml.baseName}.rmzqc.mzqc" into mzqc_channel_pt2
+    //file('test.mztab') into mztab_channel_pt2
 	
     """
-    rmzqc-cli.sh ${mzml} ${mzml.baseName}.mzqc
+    rmzqc-cli.sh ${mzml} ${mzml.baseName}.rmzqc.mzqc
 	"""
 	// alt.: Rscript <path-to-script>/rmzqc-cli.R ${mzml} ${mzml.baseName}.mzqc
+}
+
+process pymzqc {
+    container "${params.pymzqc.container}"
+    memory { params.pymzqc.memory.GB * task.attempt }
+    errorStrategy 'retry'
+
+    input:
+    file mgf from mgf_channel
+    file mzqc from mzqc_channel_pt2
+
+    output:
+    file "${mgf.baseName}.pymzqc.mzqc" into mzqc_channel_pt3
+
+    """
+	specter_of_spectra.py /opt/speclibs/PRIDE_Contaminants_unique_targetdecoy.splib  ${mgf} ${mgf.baseName}.pymzqc.mzqc
+	"""
 }
 
 
@@ -126,6 +129,7 @@ process rmzqc {
     memory { params.report.memory.GB * task.attempt }
     errorStrategy 'retry'
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.pdf"
+    publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.mzqc"
 
     input:
     file mzqc from mzqc_channel_pt3

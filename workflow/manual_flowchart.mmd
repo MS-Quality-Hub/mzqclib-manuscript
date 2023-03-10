@@ -1,0 +1,16 @@
+flowchart TD
+    p0([.raw file input])
+    p1[open access conversion]
+    p2[rmzQC]
+    p3[jmzQC]
+    p4[pymzQC]
+    p5[merge]
+	p6([report or archival])
+	p0 -->|raw| p1
+    p1 -->|mzML| p2
+    p1 -->|mzML| p3
+    p1 -->|mzML| p4
+    p2 -->|mzQC| p5
+    p3 -->|mzQC| p5
+    p4 -->|mzQC| p5
+    p5 -->|mzQC| p6

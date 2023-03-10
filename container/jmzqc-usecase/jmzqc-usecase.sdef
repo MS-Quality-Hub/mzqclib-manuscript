@@ -2,6 +2,9 @@ Bootstrap: docker
 From: openjdk:21-slim-buster
 Includecmd: yes
     
+%files
+   jmzqc-cli.sh /usr/local/bin/jmzqc-cli.sh
+
 %post
 	apt update
 	apt install -q --assume-yes wget unzip xauth
@@ -15,6 +18,5 @@ Includecmd: yes
 	./mvnw -B package --file pom.xml
 	#./mvnw -B jib:dockerBuild --file pom.xml
 	
-	echo \#\!/bin/bash > /usr/local/bin/jmzqc-cli.sh
-	echo java -jar ${jmzqc_usecase_path}/target/jmzqc-usecase-1.0.0-SNAPSHOT-cli.jar >> /usr/local/bin/jmzqc-cli.sh \"\$\@\"
 	chmod ugo+rx /usr/local/bin/jmzqc-cli.sh
+

@@ -78,12 +78,12 @@ process jmzqc {
 
     output:
     file "${mzml.baseName}.jmzqc.mzqc" into mzqc_channel_pt1
-    //file('test.mztab') into mztab_channel_pt1
 
     script:
     """
 	jmzqc-cli.sh -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
     """
+	// alt.: java -jar jmzqc-usecase-1.0.0-SNAPSHOT-cli.jar -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
 }
 
 

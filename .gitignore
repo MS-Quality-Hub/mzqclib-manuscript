@@ -7,6 +7,8 @@
 **/*.sptxt
 **/*.pepidx
 
+**/.mypy_cache
+
 test_data/
 PRIDE-Contaminants/
 container/jmzqc-usecase/repo

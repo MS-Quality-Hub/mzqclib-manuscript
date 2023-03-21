@@ -17,6 +17,7 @@ import fileinput
 import sys, os
 import shutil
 import click
+import logging
 
 #python3 spectre_of_spectra.py ${mgf} ${splib} ${mgf.baseName}.pymzqc.mzqc
 
@@ -113,10 +114,19 @@ def calc_contaminant_metric(psms):
 @click.argument('output_filepath', type=click.Path(writable=True) )  # help="The output destination path for the resulting mzqc")
 @click.option('-f', '--fig', 'figure', type=click.Path(exists=False,writable=True),
     required=False, help="A visualisation of the contaminant fishing.")
-def fish_for_contaminants(speclib_input, mgf_input, output_filepath, figure):
+@click.option('--log', type=click.Choice(['debug', 'info', 'warn'], case_sensitive=False),
+    default='warn', show_default=True,
+    required=False, help="Log detail level. (verbosity: debug>info>warn)")
+def fish_for_contaminants(speclib_input, mgf_input, output_filepath, figure, log):
 	"""
 	...
 	"""
+    # set loglevel - switch to match-case for py3.10+
+	lev = {'debug': logging.DEBUG,
+		'info': logging.INFO,
+		'warn': logging.WARN }
+	logging.basicConfig(format='%(levelname)s:%(message)s', level=lev[log])
+
 	if not any([speclib_input, mgf_input, output_filepath]):
 		print_help()
 	try:
@@ -133,7 +143,5 @@ def fish_for_contaminants(speclib_input, mgf_input, output_filepath, figure):
 	with open(output_filepath, "w") as file:
 		file.write(qc.JsonSerialisable.ToJson(mzqc, readability=1))
 	
-	# print(INFO.format(m=str(321), n=str(123)))
-
 if __name__ == '__main__':
 	fish_for_contaminants()

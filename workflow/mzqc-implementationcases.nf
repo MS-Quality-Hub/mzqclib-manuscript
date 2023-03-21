@@ -119,7 +119,7 @@ process pymzqc {
     file "${mgf.baseName}.pymzqc.mzqc" into mzqc_channel_pt3
 
     """
-	specter_of_spectra.py /opt/speclibs/PRIDE_Contaminants_unique_targetdecoy.splib  ${mgf} ${mgf.baseName}.pymzqc.mzqc
+	pymzqc-usecase.py /opt/speclibs/PRIDE_Contaminants_unique_targetdecoy.splib  ${mgf} ${mgf.baseName}.pymzqc.mzqc
 	"""
 }
 

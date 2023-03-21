@@ -6,7 +6,7 @@ includecmd: yes
 #	export PATH=/opt/pymzqc-usecase/bin/:${PATH}
 
 %files
-   specter_of_spectra.py /usr/local/bin/specter_of_spectra.py
+   pymzqc-usecase.py /usr/local/bin/pymzqc-usecase.py
    ann_solo.ini /opt/ann_solo.ini
    ann-solo-git /opt/ann-solo-git
    ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.sptxt /opt/speclibs/
@@ -27,4 +27,4 @@ includecmd: yes
 	#pip install ann_solo
 	#pip install git+https://github.com/bittremieux/ANN-SoLo.git#subdirectory=src
 	pip install /opt/ann-solo-git/src
-	chmod ugo+rx /usr/local/bin/specter_of_spectra.py
+	chmod ugo+rx /usr/local/bin/pymzqc-usecase.py

@@ -57,24 +57,24 @@ ggsave("rmzqc-usecase.png", plot=plt)
 #   * iRT calibration formula
 #   * iRT calibration adjusted r-squared
 #"""
-mes_qc <- MzQCcvParameter$new(accession="QC:0000000", 
+mes_qc <- MzQCcvParameter$new(accession="MS:4000xx1", 
 													name="iRT calibration formula", 
 													value=paste("y =", format(round(fit$coefficients[[1]],2), nsmall = 2), "+", 
 																		format(round(fit$coefficients[[2]],2), nsmall = 2), "x", sep = " ", collapse = NULL))
 																		
-meq_qc <- MzQCqualityMetric$new(accession="QC:0000000", 
+meq_qc <- MzQCqualityMetric$new(accession="MS:4000xx2", 
 													name="iRT calibration adjusted r-squared", 
 													value=format(summary(fit)$adj.r.squared,digits=4))
 
 sw <- MzQCanalysisSoftware$new(uri="https://github.com/MS-Quality-hub/rmzqc", 
-                               version=paste("v0","1","0", collapse = "."),
+                               version=paste("v0","1","0", sep=".", collapse = " "),
                                accession="MS:1000531", name="software")
 
 file_format = getCVTemplate(accession = filenameToCV(qcrunname))
 inp <- MzQCinputFile$new(basename(qcrunname), qcrunname, file_format)
 isValidMzQC(inp)
 
-rq <- MzQCrunQuality$new(metadata = MzQCmetadata$new(label = "usecase-demo",
+rq <- MzQCrunQuality$new(metadata = MzQCmetadata$new(label = "implementation-case demo",
                                     inputFiles = list(inp),
                                     analysisSoftware = list(sw)),
                                 qualityMetrics = list(mes_qc, meq_qc))

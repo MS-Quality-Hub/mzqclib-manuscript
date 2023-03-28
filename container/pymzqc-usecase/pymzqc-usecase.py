@@ -69,8 +69,8 @@ def use_ann_solo(speclib_input, mgf_input):
 
 def construct_mzqc(run_name, qm):
     infi = qc.InputFile(name=run_name, location=run_name, fileFormat=qc.CvParameter("MS:1001062", "mgf format"))
-    anso = qc.AnalysisSoftware(accession="QC:9999999", name="ANN-SoLo", version="0.3.3", uri="https://github.com/bittremieux/ANN-SoLo")
-    meta = qc.MetaDataParameters(inputFiles=[infi],analysisSoftware=[anso])
+    anso = qc.AnalysisSoftware(accession="MS:1000xx1", name="ANN-SoLo", version="0.3.3", uri="https://github.com/bittremieux/ANN-SoLo")
+    meta = qc.MetaDataParameters(inputFiles=[infi],analysisSoftware=[anso], label="implementation-case demo")
     rq = qc.RunQuality(metadata=meta, qualityMetrics=[qm])
     # sq = qc.SetQuality(metadata=meta, qualityMetrics=[qm])
     cv = qc.ControlledVocabulary(name="PSI-MS", uri="https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo")
@@ -99,7 +99,7 @@ def calc_contaminant_metric(psms):
     
     metric_txt_1 = "Identified Contaminants\n" + str(sequence_counts_sans_ohw)
     sequence_counts_sans_ohw.columns = ['MS:1003169', 'MS:1002733']
-    qm = qc.QualityMetric(accession="MS:4000xxx", name="identified contaminants", 
+    qm = qc.QualityMetric(accession="MS:4000xx3", name="identified contaminants", 
             value={col: sequence_counts_sans_ohw[col].to_list() for col in sequence_counts_sans_ohw.columns})
         
     one_hit_wonders = ', '.join(sequence_counts[sequence_counts["count"] > 1]["contaminant sequence"].to_list())

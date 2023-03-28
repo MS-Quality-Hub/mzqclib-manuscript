@@ -17,14 +17,19 @@ includecmd: yes
    ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.splib /opt/speclibs/
    ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.spidx /opt/speclibs/
    ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.pepidx /opt/speclibs/
+   ../../workflow/example_merge_of_mzqcs.py /usr/local/bin/example_merge_of_mzqcs.py
+   ../../workflow/example_report_from_mzqc.py /usr/local/bin/example_report_from_mzqc.py
 
 %post
 	apt update
 	apt install -q --assume-yes wget unzip xauth git vim build-essential
 	pip install --upgrade pip setuptools wheel
-	pip install numpy pandas scipy pyteomics pymzqc click
+	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc1
+	pip install numpy pandas scipy pyteomics click matplotlib
 	pip install faiss-gpu spectrum_utils
 	#pip install ann_solo
 	#pip install git+https://github.com/bittremieux/ANN-SoLo.git#subdirectory=src
 	pip install /opt/ann-solo-git/src
+	chmod ugo+rx /usr/local/bin/example_merge_of_mzqcs.py
+	chmod ugo+rx /usr/local/bin/example_report_from_mzqc.py
 	chmod ugo+rx /usr/local/bin/pymzqc-usecase.py

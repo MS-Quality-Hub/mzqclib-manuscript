@@ -1,3 +1,4 @@
+#!/usr/local/bin/python
 from mzqc import MZQCFile as qc
 import logging
 import base64
@@ -8,18 +9,17 @@ import click
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-def print_help():
-	"""
-	Print the help of the tool
-	:return:
-	"""
-	ctx = click.get_current_context()
-	click.echo(ctx.get_help())
-	ctx.exit()
-
-
 logger = logging.getLogger('simple_example')
 logger.setLevel(logging.DEBUG)
+
+def print_help():
+    """
+    Print the help of the tool
+    :return:
+    """
+    ctx = click.get_current_context()
+    click.echo(ctx.get_help())
+    ctx.exit()
 
 report_tmplt = """<!DOCTYPE html>
 <html>

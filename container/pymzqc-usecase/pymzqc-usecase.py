@@ -39,51 +39,51 @@ The selected mgf file has {n} spectra, of which {m} were caught with contaminant
 # reading the mztab ValueError: 22 columns passed, passed data had 21 columns
 
 def print_help():
-	"""
-	Print the help of the tool
-	:return:
-	"""
-	ctx = click.get_current_context()
-	click.echo(ctx.get_help())
-	ctx.exit()
+    """
+    Print the help of the tool
+    :return:
+    """
+    ctx = click.get_current_context()
+    click.echo(ctx.get_help())
+    ctx.exit()
 
 def use_ann_solo(speclib_input, mgf_input):
-	with tempfile.TemporaryDirectory() as dir:
-		speclib_input_rw =os.path.join(dir,os.path.basename(speclib_input))
-		shutil.copy(speclib_input, os.path.join(dir,os.path.basename(speclib_input)))
-		with tempfile.NamedTemporaryFile(mode='w+', suffix='.mzTab') as mztp:
-			res = ann_solo.ann_solo(speclib_input_rw,
-				mgf_input,
-				mztp.name,
-				precursor_tolerance_mass=20,
-				precursor_tolerance_mode="ppm",
-				fragment_mz_tolerance=0.5,
-				fdr=0.01,
-			)
-			for line in fileinput.input([mztp.name], inplace=True):
-				if line.strip().startswith('PSH'):
-					line = '\t'.join(line.split('\t')[:-1]) + '\n'
-				sys.stdout.write(line)
-			spec_catch = mztab.MzTab(mztp.name)
-	return spec_catch.spectrum_match_table
+    with tempfile.TemporaryDirectory() as dir:
+        speclib_input_rw =os.path.join(dir,os.path.basename(speclib_input))
+        shutil.copy(speclib_input, os.path.join(dir,os.path.basename(speclib_input)))
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.mzTab') as mztp:
+            res = ann_solo.ann_solo(speclib_input_rw,
+                mgf_input,
+                mztp.name,
+                precursor_tolerance_mass=20,
+                precursor_tolerance_mode="ppm",
+                fragment_mz_tolerance=0.5,
+                fdr=0.01,
+            )
+            for line in fileinput.input([mztp.name], inplace=True):
+                if line.strip().startswith('PSH'):
+                    line = '\t'.join(line.split('\t')[:-1]) + '\n'
+                sys.stdout.write(line)
+            spec_catch = mztab.MzTab(mztp.name)
+    return spec_catch.spectrum_match_table
 
 def construct_mzqc(run_name, qm):
-	infi = qc.InputFile(name=run_name, location=run_name, fileFormat=qc.CvParameter("MS:1001062", "mgf format"))
-	anso = qc.AnalysisSoftware(accession="QC:9999999", name="ANN-SoLo", version="0.3.3", uri="https://github.com/bittremieux/ANN-SoLo")
-	meta = qc.MetaDataParameters(inputFiles=[infi],analysisSoftware=[anso])
-	rq = qc.RunQuality(metadata=meta, qualityMetrics=[qm])
-	# sq = qc.SetQuality(metadata=meta, qualityMetrics=[qm])
-	cv = qc.ControlledVocabulary(name="PSI-MS", uri="https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo")
-	mzqc = qc.MzQcFile(version="1.0.0", runQualities=[rq], controlledVocabularies=[cv]) 
-	return mzqc
+    infi = qc.InputFile(name=run_name, location=run_name, fileFormat=qc.CvParameter("MS:1001062", "mgf format"))
+    anso = qc.AnalysisSoftware(accession="QC:9999999", name="ANN-SoLo", version="0.3.3", uri="https://github.com/bittremieux/ANN-SoLo")
+    meta = qc.MetaDataParameters(inputFiles=[infi],analysisSoftware=[anso])
+    rq = qc.RunQuality(metadata=meta, qualityMetrics=[qm])
+    # sq = qc.SetQuality(metadata=meta, qualityMetrics=[qm])
+    cv = qc.ControlledVocabulary(name="PSI-MS", uri="https://raw.githubusercontent.com/HUPO-PSI/psi-ms-CV/master/psi-ms.obo")
+    mzqc = qc.MzQcFile(version="1.0.0", runQualities=[rq], controlledVocabularies=[cv]) 
+    return mzqc
 
 def calc_contaminant_metric(psms):
-	df_unmod = psms[["PSM_ID","retention_time","sequence"]][~psms.sequence.str.contains('\[')]
-	df_mod = psms[["PSM_ID","retention_time","sequence"]][psms.sequence.str.contains('\[')]
-	
-	sequence_counts = df_unmod.sequence.value_counts().reset_index(name = 'count').rename(columns={"index": "contaminant sequence"})
-	sequence_counts_sans_ohw = sequence_counts[sequence_counts["count"] > 1]
-	fig = sequence_counts_sans_ohw.plot.barh(x="contaminant sequence",y='count',figsize=(6,9))
+    df_unmod = psms[["PSM_ID","retention_time","sequence"]][~psms.sequence.str.contains('\[')]
+    df_mod = psms[["PSM_ID","retention_time","sequence"]][psms.sequence.str.contains('\[')]
+    
+    sequence_counts = df_unmod.sequence.value_counts().reset_index(name = 'count').rename(columns={"index": "contaminant sequence"})
+    sequence_counts_sans_ohw = sequence_counts[sequence_counts["count"] > 1]
+    fig = sequence_counts_sans_ohw.plot.barh(x="contaminant sequence",y='count',figsize=(6,9))
 
 # [Term]
 # id: MS:4000xxx
@@ -96,16 +96,16 @@ def calc_contaminant_metric(psms):
 # relationship: has_column MS:1003169 ! proforma peptidoform sequence
 # relationship: has_column MS:1002733 ! peptide-level spectral count
 # relationship: has_optional_column MS:1000767 ! native spectrum identifier format
-	
-	metric_txt_1 = "Identified Contaminants\n" + str(sequence_counts_sans_ohw)
-	sequence_counts_sans_ohw.columns = ['MS:1003169', 'MS:1002733']
-	qm = qc.QualityMetric(accession="MS:4000xxx", name="identified contaminants", 
-			value={col: sequence_counts_sans_ohw[col].to_list() for col in sequence_counts_sans_ohw.columns})
-		
-	one_hit_wonders = ', '.join(sequence_counts[sequence_counts["count"] > 1]["contaminant sequence"].to_list())
-	metric_txt_2 = ("Additionally to the above contaminants, we found these each once: {}".format(one_hit_wonders))
-	print(metric_txt_1,'\n',metric_txt_2)
-	return qm, fig
+    
+    metric_txt_1 = "Identified Contaminants\n" + str(sequence_counts_sans_ohw)
+    sequence_counts_sans_ohw.columns = ['MS:1003169', 'MS:1002733']
+    qm = qc.QualityMetric(accession="MS:4000xxx", name="identified contaminants", 
+            value={col: sequence_counts_sans_ohw[col].to_list() for col in sequence_counts_sans_ohw.columns})
+        
+    one_hit_wonders = ', '.join(sequence_counts[sequence_counts["count"] > 1]["contaminant sequence"].to_list())
+    metric_txt_2 = ("Additionally to the above contaminants, we found these each once: {}".format(one_hit_wonders))
+    print(metric_txt_1,'\n',metric_txt_2)
+    return qm, fig
 
 
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
@@ -118,30 +118,30 @@ def calc_contaminant_metric(psms):
     default='warn', show_default=True,
     required=False, help="Log detail level. (verbosity: debug>info>warn)")
 def fish_for_contaminants(speclib_input, mgf_input, output_filepath, figure, log):
-	"""
-	...
-	"""
+    """
+    ...
+    """
     # set loglevel - switch to match-case for py3.10+
-	lev = {'debug': logging.DEBUG,
-		'info': logging.INFO,
-		'warn': logging.WARN }
-	logging.basicConfig(format='%(levelname)s:%(message)s', level=lev[log])
+    lev = {'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warn': logging.WARN }
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=lev[log])
 
-	if not any([speclib_input, mgf_input, output_filepath]):
-		print_help()
-	try:
-		psms = use_ann_solo(speclib_input, mgf_input)
-	except Exception as e:
-		click.echo(e)
-		print_help()
-	
-	qm,fig = calc_contaminant_metric(psms)
-	if figure:
-		fig.figure.savefig(figure, dpi=300, bbox_inches='tight')
-	
-	mzqc = construct_mzqc(mgf_input,qm)
-	with open(output_filepath, "w") as file:
-		file.write(qc.JsonSerialisable.ToJson(mzqc, readability=1))
-	
+    if not any([speclib_input, mgf_input, output_filepath]):
+        print_help()
+    try:
+        psms = use_ann_solo(speclib_input, mgf_input)
+    except Exception as e:
+        click.echo(e)
+        print_help()
+    
+    qm,fig = calc_contaminant_metric(psms)
+    if figure:
+        fig.figure.savefig(figure, dpi=300, bbox_inches='tight')
+    
+    mzqc = construct_mzqc(mgf_input,qm)
+    with open(output_filepath, "w") as file:
+        file.write(qc.JsonSerialisable.ToJson(mzqc, readability=1))
+    
 if __name__ == '__main__':
-	fish_for_contaminants()
+    fish_for_contaminants()

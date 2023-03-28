@@ -2,7 +2,7 @@
 showcasing the existing implementations of mzQC
 
 ## the workflow
-nextflow_22.04.5 run 'workflow/mzqc-implementationcases.nf' -params-file 'workflow/mzqc-implementationcases-local.yml' -c 'workflow/nc.config' --run 'test_data/20181113_010_autoQC01.raw'
+nextflow_22.04.5 run 'workflow/mzqc-implementationcases.nf' -params-file 'workflow/mzqc-implementationcases-local.yml' -c 'workflow/nf.config' --run 'test_data/20181113_010_autoQC01.raw'
 
 NOTE nextflow 22.04.5 does not escape the input in bash scripts if the param argument is escaped - sucks (as do things that need to be escaped)
 

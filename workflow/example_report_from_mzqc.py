@@ -134,7 +134,7 @@ def mzqc_to_single_run_report(mzqc_obj, pre_irt_plot=None):
     compile a html report form the run quality objects of the first listed run in the given file
     """   
     if len(mzqc_obj.runQualities) > 1:
-        logger.warning("Functionality only available  for single runs, found more than one run. Will produce report for first run only!")
+        logger.warning("Functionality only available for single runs, found more than one run. Will produce report for first run only!")
 
     # collect metric values (lazy)
     name = mzqc_obj.runQualities[0].metadata.inputFiles[0].name

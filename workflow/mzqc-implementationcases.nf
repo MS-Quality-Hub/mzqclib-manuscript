@@ -82,6 +82,7 @@ process jmzqc {
     script:
     """
 	jmzqc-cli.sh -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
+    sed -i '/      "metadata" : {/a        "label": "implementation-case demo",' ${mzml.baseName}.jmzqc.mzqc
     """
 	// alt.: java -jar jmzqc-usecase-1.0.0-SNAPSHOT-cli.jar -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
 }
@@ -94,7 +95,6 @@ process rmzqc {
 
     input:
     file mzml from mzml_channel_pt2
-    file mzqc from mzqc_channel_pt1
 
     output:
     file "${mzml.baseName}.rmzqc.mzqc" into mzqc_channel_pt2
@@ -103,7 +103,7 @@ process rmzqc {
     """
     rmzqc-cli.sh ${mzml} ${mzml.baseName}.rmzqc.mzqc
 	"""
-	// alt.: Rscript <path-to-script>/rmzqc-cli.R ${mzml} ${mzml.baseName}.mzqc
+	// alt.: Rscript <path-to-script>/rmzqc-cli.R ${mzml} ${mzml.baseName}.rmzqc.mzqc
 }
 
 process pymzqc {
@@ -113,7 +113,7 @@ process pymzqc {
 
     input:
     file mgf from mgf_channel
-    file mzqc from mzqc_channel_pt2
+    // file mzqc from mzqc_channel_pt2
 
     output:
     file "${mgf.baseName}.pymzqc.mzqc" into mzqc_channel_pt3
@@ -123,27 +123,41 @@ process pymzqc {
 	"""
 }
 
+process merge
+ {
+    container "${params.pymzqc.container}"
+    memory { params.pymzqc.memory.GB * task.attempt }
+    errorStrategy 'retry'
 
-/* process report {
-    container "${params.report.container}"
+    input:
+    file mzqc_1 from mzqc_channel_pt1
+    file mzqc_2 from mzqc_channel_pt2
+    file mzqc_3 from mzqc_channel_pt3
+
+    output:
+    file "${mzqc_l}.merged.mzqc" into mzqc_channel_fin
+
+    """
+	example_merge_of_mzqcs.py ${mzqc_1}.merged.mzqc ${mzqc_1} ${mzqc_2} ${mzqc_3}
+	"""
+}
+
+
+process report {
+    container "${params.pymzqc.container}"
     memory { params.report.memory.GB * task.attempt }
     errorStrategy 'retry'
-    publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.pdf"
+    publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.html"
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.mzqc"
 
     input:
-    file mzqc from mzqc_channel_pt3
+    file mzqc from mzqc_channel_fin
 
     output:
-    file('*.pdf') into report_channel
+    file('*.html') into report_channel
 
     script:
     """
-    markup_magic.sh -in ${mzqc} -out ${mzqc.baseName}.pdf
+    example_report_from_mzqc.py ${mzqc} ${mzqc.baseName}.html
 	"""
-	
-	stub:
-	"""
-	touch test.pdf
-    """
-} */
+}

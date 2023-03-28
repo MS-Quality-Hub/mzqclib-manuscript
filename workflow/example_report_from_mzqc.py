@@ -28,27 +28,27 @@ report_tmplt = """<!DOCTYPE html>
 </head>
 <body>
 
-<h1>Acquisition</h1>
-QC Report for {name}
-<p>
-    <img align="left" src="data:image/png;base64, {mz_plot}">
-</p><p>
-    <img align="right" src="data:image/png;base64, {rt_plot}">
-</p>
+<h1>QC Report for {name}</h1>
+<table>
+<tr>
+  <td><h2>Acquisition</h2></td>
+  <td><p><img align="left" src="data:image/png;base64, {mz_plot}", width="300"></p></td>
+  <td><p><img align="right" src="data:image/png;base64, {rt_plot}", width="600"></p></td>
+</tr>
+<tr>
+  <td><h2>Calibration</h2></td>
+  <td><p><img align="left" src="data:image/png;base64, {tic_plot}", width="400"></p></td>
+  <td><p><img align="right" src="data:image/png;base64, {irt_plot}", width="400"></p></td>
+</tr>
+</table>
+<h2>Contamination</h2>
+{conta_tab}
 
-
-<h1>Calibration</h1>
-<p>
-    <img align="right" src="data:image/png;base64, {irt_plot}">
-</p><p>
-    <img align="left" src="data:image/png;base64, {tic_plot}">
-</p>
 </body>
 </html>
 """
 
 def plot_range_mz(mzrange):
-    # rmin, rmax = min(mzrange), max(mzrange)
     f, ax = plt.subplots(1)
     f.set_figwidth(1)
     ax.plot([0]*len(mzrange), mzrange, linewidth = '5')  # thicker linewidths results in inaccurate line breadth
@@ -59,7 +59,7 @@ def plot_range_mz(mzrange):
     ax.set_frame_on(False)
     # ax.axis("tight")  # this undoes limits etc
 
-    offset=50  # offset in px?!
+    offset=70  # offset in px?!
 
     plt.ylabel("m/z", size=12)
     plt.title("MS instrument \nacquisition range \nin mass-over-charge", size=18, fontweight='bold')
@@ -80,7 +80,7 @@ def plot_range_rt(rtrange):
     f, ax = plt.subplots(1)
     f.set_figheight(1)
     ax.plot(rtrange,[0]*len(rtrange), linewidth = '5')  # thicker linewidths results in inaccurate line breadth
-    ax.set_xlim((0,2000))
+    ax.set_xlim((0,round(max(rtrange)+100, -2)))
     ax.set_ylim(bottom=0)
 
     ax.get_yaxis().set_visible(False)
@@ -95,7 +95,7 @@ def plot_range_rt(rtrange):
     plt.xlabel("RT [s]", size=12)
     plt.title("MS instrument acquisition range over run time", size=18, fontweight='bold')
 
-    offset=22  # offset in px?!
+    offset=30  # offset in px?!
     for rt_lim in rtrange:
         # ax.text(rt_lim, .03, format(rt_lim, '.2f'), size=16, horizontalalignment='center')
         ax.annotate(format(rt_lim, '.2f'), 
@@ -141,6 +141,7 @@ def mzqc_to_single_run_report(mzqc_obj, pre_irt_plot=None):
     mz_range = next(iter(list(filter(lambda x: x.accession == "MS:4000069", mzqc_obj.runQualities[0].qualityMetrics)))).value
     rt_range = next(iter(list(filter(lambda x: x.accession == "MS:4000070", mzqc_obj.runQualities[0].qualityMetrics)))).value
     tic = next(iter(list(filter(lambda x: x.accession == "MS:4000104", mzqc_obj.runQualities[0].qualityMetrics)))).value
+    conta = next(iter(list(filter(lambda x: x.accession == "MS:4000xx3", mzqc_obj.runQualities[0].qualityMetrics)))).value
     
     if not pre_irt_plot:
         irt_plot = plot_to_b64(plot_blank())
@@ -152,8 +153,9 @@ def mzqc_to_single_run_report(mzqc_obj, pre_irt_plot=None):
     tic_plot = plot_to_b64(f)
     mz_plot = plot_to_b64(plot_range_mz(mz_range))
     rt_plot = plot_to_b64(plot_range_rt(rt_range))
+    conta_tab = pd.DataFrame(conta).rename(columns={"MS:1003169": "Contaminant", "MS:1002733": "Spectrum Count"}).to_html(border=1)
 
-    return report_tmplt.format(name=name, mz_plot=mz_plot, rt_plot=rt_plot, irt_plot=irt_plot, tic_plot=tic_plot)
+    return report_tmplt.format(name=name, mz_plot=mz_plot, rt_plot=rt_plot, irt_plot=irt_plot, tic_plot=tic_plot, conta_tab=conta_tab)
 
 @click.command(short_help='produce a minimal HTML document with metric visualisations of the given mzQC file')
 @click.argument('input', type=click.Path(exists=True,readable=True) )  # mzqc

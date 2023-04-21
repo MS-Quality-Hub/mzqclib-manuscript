@@ -98,7 +98,7 @@ process rmzqc {
 
     output:
     file "${mzml.baseName}.rmzqc.mzqc" into mzqc_channel_pt2
-    //file('test.mztab') into mztab_channel_pt2
+    file "*.png" into graph_channel
 	
     """
     rmzqc-cli.sh ${mzml} ${mzml.baseName}.rmzqc.mzqc
@@ -125,8 +125,8 @@ process pymzqc {
 
 process merge
  {
-    container "${params.pymzqc.container}"
-    memory { params.pymzqc.memory.GB * task.attempt }
+    container "${params.report.container}"
+    memory { params.report.memory.GB * task.attempt }
     errorStrategy 'retry'
 
     input:
@@ -135,16 +135,15 @@ process merge
     file mzqc_3 from mzqc_channel_pt3
 
     output:
-    file "${mzqc_l}.merged.mzqc" into mzqc_channel_fin
+    file "${mzqc_1}.merged.mzqc" into mzqc_channel_fin
 
     """
 	example_merge_of_mzqcs.py ${mzqc_1}.merged.mzqc ${mzqc_1} ${mzqc_2} ${mzqc_3}
 	"""
 }
 
-
 process report {
-    container "${params.pymzqc.container}"
+    container "${params.report.container}"
     memory { params.report.memory.GB * task.attempt }
     errorStrategy 'retry'
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.html"
@@ -152,12 +151,13 @@ process report {
 
     input:
     file mzqc from mzqc_channel_fin
+	file png from graph_channel
 
     output:
     file('*.html') into report_channel
 
     script:
     """
-    example_report_from_mzqc.py ${mzqc} ${mzqc.baseName}.html
+    example_report_from_mzqc.py -f ${png} ${mzqc} ${mzqc.baseName}.html
 	"""
 }

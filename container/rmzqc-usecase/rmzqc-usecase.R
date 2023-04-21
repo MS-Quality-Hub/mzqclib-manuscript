@@ -57,12 +57,12 @@ ggsave("rmzqc-usecase.png", plot=plt)
 #   * iRT calibration formula
 #   * iRT calibration adjusted r-squared
 #"""
-mes_qc <- MzQCcvParameter$new(accession="MS:4000xx1", 
+mes_qc <- MzQCcvParameter$new(accession="MS:4000149", 
 													name="iRT calibration formula", 
 													value=paste("y =", format(round(fit$coefficients[[1]],2), nsmall = 2), "+", 
 																		format(round(fit$coefficients[[2]],2), nsmall = 2), "x", sep = " ", collapse = NULL))
 																		
-meq_qc <- MzQCqualityMetric$new(accession="MS:4000xx2", 
+meq_qc <- MzQCqualityMetric$new(accession="MS:4000150", 
 													name="iRT calibration adjusted r-squared", 
 													value=format(summary(fit)$adj.r.squared,digits=4))
 

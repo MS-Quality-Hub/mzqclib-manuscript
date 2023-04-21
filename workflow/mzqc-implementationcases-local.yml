@@ -1,18 +1,18 @@
 thermo_converter:
-  container: "/home/walzer/other-tools/singularity_images/thermorawfileparser:1.4.1.simg"
+  container: "./container/thermorawfileparser/thermorawfileparser:1.4.1.simg"
   memory: 4
   maxRetries: 3
 jmzqc:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/jmzqc-usecase/jmzqc-usecase.simg"
+  container: "./container/jmzqc-usecase/jmzqc-usecase.simg"
   memory: 4
 pymzqc:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/pymzqc-usecase/pymzqc-usecase.simg"
+  container: "./container/pymzqc-usecase/pymzqc-usecase.simg"
   memory: 4
 rmzqc:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/rmzqc-usecase/rmzqc-usecase.simg"
+  container: "./container/rmzqc-usecase/rmzqc-usecase.simg"
   memory: 4
 report:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/pymzqc-usecase/pymzqc-usecase.simg"
+  container: "./container/pymzqc-usecase/pymzqc-usecase.simg"
   memory: 4
 
 

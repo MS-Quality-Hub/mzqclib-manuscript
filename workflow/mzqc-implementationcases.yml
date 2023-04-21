@@ -12,5 +12,5 @@ rmzqc:
   container: "/hps/nobackup2/proteomics/rmzqc.simg"
   memory: 4
 report:
-  container: "/hps/nobackup2/proteomics/python-r:bioc-py3-tinytex-qc_plus_msstats.simg"
+  container: "/hps/nobackup2/proteomics/mzqc-mergereport-usecase.simg"
   memory: 4  # GB, multiplied by the number of attempts

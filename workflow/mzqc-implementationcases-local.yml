@@ -6,13 +6,13 @@ jmzqc:
   container: "/home/walzer/psi/mzqclib-manuscript/container/jmzqc-usecase/jmzqc-usecase.simg"
   memory: 4
 pymzqc:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/pymzqc-usecase/pymzqc-usecase.simg"
+  container: "/home/walzer/psi/mzqclib-manuscript/container/pymzqc-usecase/pymzqc-usecase.simg.bak"
   memory: 4
 rmzqc:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/rmzqc-usecase/rmzqc-usecase.simg"
+  container: "/home/walzer/psi/mzqclib-manuscript/container/rmzqc-usecase/rmzqc-usecase.simg.bak"
   memory: 4
 report:
-  container: "/home/walzer/psi/mzqclib-manuscript/container/pymzqc-usecase/pymzqc-usecase.simg"
+  container: "/home/walzer/psi/mzqclib-manuscript/container/merge-and-report/mergereport-usecase.simg"
   memory: 4
 
 

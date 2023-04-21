@@ -7,4 +7,5 @@ ERROR: Could not find a version that satisfies the requirement faiss (from ann-s
 ERROR: No matching distribution found for faiss
 FATAL:   While performing build: while running engine: exit status 1
 ```
-This must be some changes in pip as it was working before.
+This must be due to some changes in pip as it was working before.
+A 'patched' `setup.py` can be found in `container/pymzqc-usecase/local-ann-patch/setup.py`. Check out a local ANN-solo from _main_ into `ann-solo-git` and copy that `setup.py` to `ann-solo-git/src/setup.py` befor `singularity build`.

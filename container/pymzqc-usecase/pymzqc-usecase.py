@@ -69,7 +69,7 @@ def use_ann_solo(speclib_input, mgf_input):
 
 def construct_mzqc(run_name, qm):
     infi = qc.InputFile(name=run_name, location=run_name, fileFormat=qc.CvParameter("MS:1001062", "mgf format"))
-    anso = qc.AnalysisSoftware(accession="MS:1000xx1", name="ANN-SoLo", version="0.3.3", uri="https://github.com/bittremieux/ANN-SoLo")
+    anso = qc.AnalysisSoftware(accession="MS:1003357", name="ANN-SoLo", version="0.3.3", uri="https://github.com/bittremieux/ANN-SoLo")
     meta = qc.MetaDataParameters(inputFiles=[infi],analysisSoftware=[anso], label="implementation-case demo")
     rq = qc.RunQuality(metadata=meta, qualityMetrics=[qm])
     # sq = qc.SetQuality(metadata=meta, qualityMetrics=[qm])

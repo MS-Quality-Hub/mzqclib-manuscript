@@ -9,8 +9,6 @@ includecmd: yes
    pymzqc-usecase.py /usr/local/bin/pymzqc-usecase.py
 
 %post
-	apt update
-	apt install -q --assume-yes wget unzip xauth git vim build-essential
 	pip install --upgrade pip setuptools wheel
 	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc2
 	pip install numpy pandas scipy pyteomics click matplotlib

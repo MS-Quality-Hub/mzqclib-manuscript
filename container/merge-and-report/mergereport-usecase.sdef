@@ -13,7 +13,7 @@ includecmd: yes
 	apt update
 	apt install -q --assume-yes wget unzip xauth git vim build-essential
 	pip install --upgrade pip setuptools wheel
-	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc1
+	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc2
 	pip install numpy pandas scipy pyteomics click matplotlib
 	chmod ugo+rx /usr/local/bin/example_merge_of_mzqcs.py
 	chmod ugo+rx /usr/local/bin/example_report_from_mzqc.py

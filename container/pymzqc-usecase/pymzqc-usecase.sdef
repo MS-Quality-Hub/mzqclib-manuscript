@@ -7,16 +7,6 @@ includecmd: yes
 
 %files
    pymzqc-usecase.py /usr/local/bin/pymzqc-usecase.py
-   ann_solo.ini /opt/ann_solo.ini
-   ann-solo-git /opt/ann-solo-git
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.sptxt /opt/speclibs/
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.splib /opt/speclibs/
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.spidx /opt/speclibs/
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.pepidx /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.sptxt /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.splib /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.spidx /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.pepidx /opt/speclibs/
 
 %post
 	apt update
@@ -24,8 +14,4 @@ includecmd: yes
 	pip install --upgrade pip setuptools wheel
 	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc2
 	pip install numpy pandas scipy pyteomics click matplotlib
-	pip install faiss-gpu spectrum_utils
-	#pip install ann_solo
-	#pip install git+https://github.com/bittremieux/ANN-SoLo.git#subdirectory=src
-	pip install /opt/ann-solo-git/src
 	chmod ugo+rx /usr/local/bin/pymzqc-usecase.py

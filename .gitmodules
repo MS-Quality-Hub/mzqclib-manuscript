@@ -1,0 +1,3 @@
+[submodule "container/speclib-usecase/ann-solo-git"]
+	path = container/speclib-usecase/ann-solo-git
+	url = https://github.com/bittremieux/ANN-SoLo.git

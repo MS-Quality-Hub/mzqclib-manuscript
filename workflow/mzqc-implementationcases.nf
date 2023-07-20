@@ -50,7 +50,7 @@ else{
 process rawfileconversion {
     container "${params.thermo_converter.container}"
     memory { params.thermo_converter.memory.GB * task.attempt }
-    errorStrategy 'retry'
+    // errorStrategy 'retry'
     maxRetries { params.thermo_converter.maxRetries }
     
 	input:
@@ -71,7 +71,7 @@ process rawfileconversion {
 process jmzqc {
     container "${params.jmzqc.container}"
     memory { params.jmzqc.memory.GB * task.attempt }
-    errorStrategy 'retry'
+    // errorStrategy 'retry'
     
     input:
     file mzml from mzml_channel_pt1
@@ -91,7 +91,7 @@ process jmzqc {
 process rmzqc {
     container "${params.rmzqc.container}"
     memory { params.rmzqc.memory.GB * task.attempt }
-    errorStrategy 'retry'
+    // errorStrategy 'retry'
 
     input:
     file mzml from mzml_channel_pt2
@@ -109,7 +109,7 @@ process rmzqc {
 process pymzqc {
     container "${params.pymzqc.container}"
     memory { params.pymzqc.memory.GB * task.attempt }
-    errorStrategy 'retry'
+    // errorStrategy 'retry'
 
     input:
     file mgf from mgf_channel
@@ -127,7 +127,8 @@ process merge
  {
     container "${params.report.container}"
     memory { params.report.memory.GB * task.attempt }
-    errorStrategy 'retry'
+    // errorStrategy 'retry'
+    publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.mzqc"
 
     input:
     file mzqc_1 from mzqc_channel_pt1
@@ -145,7 +146,7 @@ process merge
 process report {
     container "${params.report.container}"
     memory { params.report.memory.GB * task.attempt }
-    errorStrategy 'retry'
+    // errorStrategy 'retry'
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.html"
     publishDir "${params.out_dir}/" , mode: 'copy', pattern: "*.mzqc"
 

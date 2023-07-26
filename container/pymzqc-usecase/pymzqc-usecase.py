@@ -235,11 +235,12 @@ def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
 	infi1.fileProperties.append(qc.CvParameter("MS:1000747", "completion time", run.completion_time))
 	infi2 = qc.InputFile(name=run.mzid_path, location=run.mzid_path, fileFormat=qc.CvParameter("MS:1002073", "mzIdentML format"))
 	anso1 = qc.AnalysisSoftware(accession="MS:1002251", name="Comet", version="version 2023.01 rev. 0", uri="https://github.com/UWPR/Comet")
-	anso2 = qc.AnalysisSoftware(accession="MS:1003357", name="simple_qc_metric_calculator", version="0", uri="https://github.com/MS-Quality-Hub/mzqclib-manuscript")
+	anso2 = qc.AnalysisSoftware(accession="MS:1003357", name="simple qc metric calculator", version="0", uri="https://github.com/MS-Quality-Hub/mzqclib-manuscript")
 	meta = qc.MetaDataParameters(inputFiles=[infi1, infi2],analysisSoftware=[anso1, anso2], label="implementation-case demo")
 	rq = qc.RunQuality(metadata=meta, qualityMetrics=quality_metric_values)
 	cv = qc.ControlledVocabulary(name="PSI-MS", uri="https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.130/psi-ms.obo", version="v4.1.130")
-	mzqc = qc.MzQcFile(version="1.0.0", runQualities=[rq], controlledVocabularies=[cv]) 
+	mzqc = qc.MzQcFile(version="1.0.0", description="Demo mzQC created from a simple qc metric calculator", contactName="mwalzer", 
+		    contactAddress="https://github.com/MS-Quality-Hub/mzqclib-manuscript", runQualities=[rq], controlledVocabularies=[cv]) 
 	return mzqc
 
 def calc_metric_ioncollection(run) -> qc.QualityMetric:
@@ -273,10 +274,11 @@ def calc_metric_deltam(run) -> qc.QualityMetric:
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"
 @click.argument('mzid_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
 @click.argument('output_filepath', type=click.Path(writable=True) )  # help="The output destination path for the resulting mzqc"
+@click.option('--dev',  is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics').")
 @click.option('--log', type=click.Choice(['debug', 'info', 'warn'], case_sensitive=False),
 	default='warn', show_default=True,
 	required=False, help="Log detail level. (verbosity: debug>info>warn)")
-def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, log):
+def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, log):
 	"""
 	...
 	"""
@@ -299,7 +301,11 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, log):
 		print_help()
 	
 	quality_metric_values = [calc_metric_deltam(run), calc_metric_ioncollection(run), calc_metric_missedcleavage(run)]
-	
+	if dev:
+		for n,df in [("base data frame", run.base_df), ("identifications data frame", run.id_df)]:
+			quality_metric_values.append(
+				qc.QualityMetric(accession="MS:4000005", name=n, value=df.to_dict(orient='list'))
+			)
 	mzqc = construct_mzqc(run, quality_metric_values)
 	with open(os.path.join(output_filepath, run.run_name+".mzQC"), "w") as file:
 		file.write(qc.JsonSerialisable.ToJson(mzqc, readability=1))

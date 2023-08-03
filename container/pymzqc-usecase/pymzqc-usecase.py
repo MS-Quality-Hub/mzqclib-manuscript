@@ -304,7 +304,7 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, lo
 	if dev:
 		for n,df in [("base data frame", run.base_df), ("identifications data frame", run.id_df)]:
 			quality_metric_values.append(
-				qc.QualityMetric(accession="MS:4000005", name=n, value=df.to_dict(orient='list'))
+				qc.QualityMetric(accession="MS:4000005", name=n, value=df.where((pd.notnull(df)), None).to_dict().to_dict(orient='list'))
 			)
 	mzqc = construct_mzqc(run, quality_metric_values)
 	with open(os.path.join(output_filepath, run.run_name+".mzQC"), "w") as file:

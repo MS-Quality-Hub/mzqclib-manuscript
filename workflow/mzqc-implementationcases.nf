@@ -2,7 +2,7 @@
 nextflow.enable.dsl = 1
 /*
 ===============================================================================
-            mzqc-usecase workflow v0.0.1
+            mzqc-usecase workflow v0.0.2
 ===============================================================================
  @authors
  Mathias Walzer <walzer@ebi.ac.uk>
@@ -53,20 +53,35 @@ process rawfileconversion {
     // errorStrategy 'retry'
     maxRetries { params.thermo_converter.maxRetries }
     
-	input:
+    input:
     //file raw_file from "${params.raw_file}"
 	
     output:
-    file "${raw_file.baseName}.mzML" into mzml_channel_pt1,mzml_channel_pt2,mzml_channel_pt3
-    file "${raw_file.baseName}.mgf" into mgf_channel
+    file "${raw_file.baseName}.mzML" into mzml_channel_id,mzml_channel_pt1,mzml_channel_pt2,mzml_channel_pt3
  
     script:
     """
     ThermoRawFileParser.sh -i=$raw_file -f=2 -b ${raw_file.baseName}.mzML
-    ThermoRawFileParser.sh -i=$raw_file -f=0 -b ${raw_file.baseName}.mgf
     """
 }
 
+process cometms_id {
+    container "${params.cometms_id.container}"
+    memory { params.cometms_id.memory.GB * task.attempt }
+    // errorStrategy 'retry'
+    maxRetries { params.cometms_id.maxRetries }
+    
+    input:
+    file mzml from mzml_channel_id
+	
+    output:
+    file "${mzml.baseName}.mzid" into mzid_channel
+ 
+    script:
+    """
+    comet.exe -Pcomet.params.high-high -DiPRG2015.fasta ${mzml}
+    """
+}
 
 process jmzqc {
     container "${params.jmzqc.container}"
@@ -81,10 +96,10 @@ process jmzqc {
 
     script:
     """
-	jmzqc-cli.sh -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
+    jmzqc-cli.sh -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
     sed -i '/      "metadata" : {/a        "label": "implementation-case demo",' ${mzml.baseName}.jmzqc.mzqc
     """
-	// alt.: java -jar jmzqc-usecase-1.0.0-SNAPSHOT-cli.jar -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
+    // alt.: java -jar jmzqc-usecase-1.0.0-SNAPSHOT-cli.jar -f ${mzml} -o ${mzml.baseName}.jmzqc.mzqc
 }
 
 
@@ -102,8 +117,8 @@ process rmzqc {
 	
     """
     rmzqc-cli.sh ${mzml} ${mzml.baseName}.rmzqc.mzqc
-	"""
-	// alt.: Rscript <path-to-script>/rmzqc-cli.R ${mzml} ${mzml.baseName}.rmzqc.mzqc
+    """
+    // alt.: Rscript <path-to-script>/rmzqc-cli.R ${mzml} ${mzml.baseName}.rmzqc.mzqc
 }
 
 process pymzqc {
@@ -112,15 +127,15 @@ process pymzqc {
     // errorStrategy 'retry'
 
     input:
-    file mgf from mgf_channel
-    // file mzqc from mzqc_channel_pt2
+    file mzid from mzid_channel
+    file mzml from mzml_channel_pt3
 
     output:
-    file "${mgf.baseName}.pymzqc.mzqc" into mzqc_channel_pt3
+    file "${mzml.baseName}.pymzqc.mzqc" into mzqc_channel_pt3
 
     """
-	pymzqc-usecase.py /opt/speclibs/PRIDE_Contaminants_unique_targetdecoy.splib  ${mgf} ${mgf.baseName}.pymzqc.mzqc
-	"""
+    pymzqc-usecase.py ${mzml} ${mzid} ${mzml.baseName}.pymzqc.mzqc
+    """
 }
 
 process merge
@@ -139,8 +154,8 @@ process merge
     file "${mzqc_1}.merged.mzqc" into mzqc_channel_fin
 
     """
-	example_merge_of_mzqcs.py ${mzqc_1}.merged.mzqc ${mzqc_1} ${mzqc_2} ${mzqc_3}
-	"""
+    example_merge_of_mzqcs.py ${mzqc_1}.merged.mzqc ${mzqc_1} ${mzqc_2} ${mzqc_3}
+    """
 }
 
 process report {
@@ -152,7 +167,7 @@ process report {
 
     input:
     file mzqc from mzqc_channel_fin
-	file png from graph_channel
+    file png from graph_channel
 
     output:
     file('*.html') into report_channel
@@ -160,5 +175,5 @@ process report {
     script:
     """
     example_report_from_mzqc.py -f ${png} ${mzqc} ${mzqc.baseName}.html
-	"""
+    """
 }

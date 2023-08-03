@@ -1,5 +1,9 @@
 thermo_converter:
-  container: "/home/walzer/other-tools/singularity_images/thermorawfileparser:1.4.1.simg"
+  container: "/home/walzer/singularity_images/thermorawfileparser:1.4.1.simg"
+  memory: 4
+  maxRetries: 3
+cometms_id:
+  container: "/home/walzer/singularity_images/biocontainers_comet-ms:2023010.simg"
   memory: 4
   maxRetries: 3
 jmzqc:
@@ -14,5 +18,6 @@ rmzqc:
 report:
   container: "/home/walzer/psi/mzqclib-manuscript/container/merge-and-report/mergereport-usecase.simg"
   memory: 4
-out_dir: "/home/walzer/psi/mzqclib-manuscript/test_data/autoQC"
-
+out_dir: "/home/walzer/psi/mzqclib-manuscript/test_data/"
+id_param: "/home/walzer/psi/mzqclib-manuscript/test_data/iPRG2015/comet.params.high-high"
+fasta: "/home/walzer/psi/mzqclib-manuscript/test_data/iPRG2015/iPRG2015.fasta"

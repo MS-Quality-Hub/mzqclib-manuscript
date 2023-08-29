@@ -218,10 +218,11 @@ def load_ids(run: Run, mzid_path:str, fdr: int=5) -> Run:
 	# pre_fdr = mzid.qvalues(idf, key='Comet:expectation value', reverse=False)  # KeyError: 'SpectrumIdentificationItem'
 	try:
 		pre_fdr = mzid.qvalues(mzid_path, key=comet_evalue, reverse=False, full_output=True)
+		# TODO dataframe calculatedMassToCharge source? mzid direct. ppm fail either because of None or because idDecoy == True filter was on :/
 		ids = getMetricSourceFramesIdent(pre_fdr)
-		# filtered = ids[(ids['isDecoy'] == True) & (ids['q-value'] < 0.01)].drop_duplicates(subset='scan_id', keep='first')
+		# filtered = ids[(ids['isDecoy'] == False) & (ids['q-value'] < 0.01)].drop_duplicates(subset='scan_id', keep='first')
 		if 0 < fdr < 100: 
-			ids = ids[(ids['isDecoy'] == True) & (ids['q-value'] < fdr/100 )].drop_duplicates(subset='scan_id', keep='first')
+			ids = ids[(ids['isDecoy'] == False) & (ids['q-value'] < fdr/100 )].drop_duplicates(subset='scan_id', keep='first')
 	except:
 		ids = None
 	run.mzid_path = mzid_path

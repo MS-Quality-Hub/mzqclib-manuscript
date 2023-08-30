@@ -1,14 +1,18 @@
 Bootstrap: docker
-From: openjdk:21-slim-buster
+From: openjdk:21-slim-bullseye
 Includecmd: yes
     
 %files
    jmzqc-cli.sh /usr/local/bin/jmzqc-cli.sh
 
 %post
+	export DEBIAN_FRONTEND=noninteractive  # unset at the end !!!
+	printf "deb https://deb.debian.org/debian bullseye main\ndeb https://security.debian.org/debian-security bullseye-security/updates main\ndeb https://ftp.debian.org/debian bullseye-updates main\n" > /etc/apt/sources.list
+	printf "deb https://deb.debian.org/debian unstable main\n" >> /etc/apt/sources.list
+
 	apt update
-	apt install -q --assume-yes wget unzip xauth
-	apt install -q --assume-yes build-essential cmake catch autoconf patch libtool git automake vim
+	apt install -q --assume-yes apt-utils wget unzip vim 
+	apt install -q --assume-yes git 
 
 	jmzqc_usecase_url=https://github.com/nilshoffmann/jmzqc-usecase.git
 	jmzqc_usecase_path=/opt/jmzqc_usecase/
@@ -19,4 +23,5 @@ Includecmd: yes
 	#./mvnw -B jib:dockerBuild --file pom.xml
 	
 	chmod ugo+rx /usr/local/bin/jmzqc-cli.sh
+	unset DEBIAN_FRONTEND
 

@@ -271,10 +271,24 @@ def calc_metric_deltam(run) -> qc.QualityMetric:
 										    "MS:4000072": ids_only['mass_error_ppm'].to_list()})
 	return metric_value
 			    
+def calc_metric_idrate(run) -> qc.QualityMetric:
+	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
+	cid = qc.QualityMetric(accession="MS:1003251", 
+				 			name="count of identified spectra", 
+							value= int(ids_only['native_id'].nunique()))
+	cms = qc.QualityMetric(accession="MS:4000060", 
+							name="number of MS2 spectra", 
+							value= int(run.base_df['native_id'].nunique()))
+	metric_value = qc.QualityMetric(accession="MS:4000xxx", 
+				 					name="spectra identification ratio", 
+									value= ids_only['native_id'].nunique()/run.base_df['native_id'].nunique())
+	# maybe just report MS:1003251 and MS:4000060 individually and let the report SW deal with ratio building and heatmap scoring?
+	return cid,cms,metric_value
+
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"
 @click.argument('mzid_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
-@click.argument('output_filepath', type=click.Path(writable=True) )  # help="The output destination path for the resulting mzqc"
+@click.argument('output_filepath', type=click.Path(writable=True, file_okay=False) )  # help="The output destination path for the resulting mzqc"
 @click.option('--dev',  is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics').")
 @click.option('--log', type=click.Choice(['debug', 'info', 'warn'], case_sensitive=False),
 	default='warn', show_default=True,
@@ -301,7 +315,7 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, lo
 		click.echo(e)
 		print_help()
 	
-	quality_metric_values = [calc_metric_deltam(run), calc_metric_ioncollection(run), calc_metric_missedcleavage(run)]
+	quality_metric_values = [calc_metric_deltam(run), calc_metric_ioncollection(run), calc_metric_missedcleavage(run), *calc_metric_idrate(run)]
 	if dev:
 		for n,df in [("base data frame", run.base_df), ("identifications data frame", run.id_df)]:
 			quality_metric_values.append(

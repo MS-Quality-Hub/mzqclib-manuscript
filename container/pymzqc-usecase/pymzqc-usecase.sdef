@@ -11,5 +11,5 @@ includecmd: yes
 %post
 	pip install --upgrade pip setuptools wheel
 	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc2
-	pip install numpy pandas scipy pyteomics click matplotlib
+	pip install lxml numpy pandas scipy pyteomics click matplotlib
 	chmod ugo+rx /usr/local/bin/pymzqc-usecase.py

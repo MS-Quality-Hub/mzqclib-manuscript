@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 from pyteomics import mzml, mzid, parser as fastaparser
-from typing import List, Dict, Union, Any
+from typing import List, Dict, Union, Tuple, Any
 from dataclasses import dataclass, field
 import pronto
 from lxml import etree
@@ -104,11 +104,12 @@ def getMassError(theo_mz: float, exp_mz: float, use_ppm: bool = True) -> float:
 def comet_evalue(psm):
 	return next(iter(psm.get("SpectrumIdentificationItem"))).get("Comet:expectation value")
 
-def getMetricSourceFramesIdent(fdr) -> pd.DataFrame:
+def getMetricSourceFramesIdent(mzid_content) -> pd.DataFrame:
 	data_acquisition: Dict[str,List[Any]] = defaultdict(list)
-	for qvt in fdr:
+	for qvt in mzid_content:
 		psm_rep = next(iter(qvt[3]['SpectrumIdentificationItem']))
-		data_acquisition['scan_id'].append(qvt[3]['spectrumID'])		
+		data_acquisition['scan_id'].append(qvt[3]['spectrumID'])
+		# data_acquisition['rt'].append(qvt[3]['retention time'])  # not need with later base_df merge 
 		data_acquisition['fd-ratio'].append(qvt[0])		
 		data_acquisition['q-value'].append(qvt[2])		
 		data_acquisition['chargeState'].append(psm_rep['chargeState'])
@@ -214,15 +215,14 @@ def load_mzml(mzml_path: str) -> Run:
 	return Run(run_name=name, start_time=strt, completion_time=cmplt, base_df=base, mzml_path=mzml_path, instrument_type=itype, checksum=chksm)
 
 def load_ids(run: Run, mzid_path:str, fdr: int=5) -> Run:
-	# idf = mzid.DataFrame(mzid_path)  # does not work as input to qvalues
-	# pre_fdr = mzid.qvalues(idf, key='Comet:expectation value', reverse=False)  # KeyError: 'SpectrumIdentificationItem'
 	try:
+		# BTW this is what is dead slow in the usecase processing pipeline
 		pre_fdr = mzid.qvalues(mzid_path, key=comet_evalue, reverse=False, full_output=True)
-		# TODO dataframe calculatedMassToCharge source? mzid direct. ppm fail either because of None or because idDecoy == True filter was on :/
 		ids = getMetricSourceFramesIdent(pre_fdr)
-		# filtered = ids[(ids['isDecoy'] == False) & (ids['q-value'] < 0.01)].drop_duplicates(subset='scan_id', keep='first')
+		print("psms recorded",len(ids))
 		if 0 < fdr < 100: 
 			ids = ids[(ids['isDecoy'] == False) & (ids['q-value'] < fdr/100 )].drop_duplicates(subset='scan_id', keep='first')
+		print("psms filtered",len(ids))
 	except:
 		ids = None
 	run.mzid_path = mzid_path
@@ -263,15 +263,60 @@ def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 											"MS:1000927": mcs})
 	return metric_value
 
-def calc_metric_deltam(run) -> qc.QualityMetric:
+def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
-	ids_only['mass_error_ppm'] = ids_only.apply(lambda row : getMassError(row['calculatedMassToCharge'], row['experimentalMassToCharge']), axis = 1).abs()
-	metric_value = qc.QualityMetric(accession="MS:4000078", name="QC2 sample mass accuracies", value={
-											'MS:1003169': ids_only['PeptideSequence'].to_list(), 
-										    "MS:4000072": ids_only['mass_error_ppm'].to_list()})
-	return metric_value
+	SEARCH_ENGINE_FILTER_SETTINGS = 20
+	ids_only['mass_error_ppm'] = ids_only.apply(lambda row : 
+									getMassError(row['calculatedMassToCharge'], 
+						 						 row['experimentalMassToCharge']), axis = 1)\
+													.clip(-SEARCH_ENGINE_FILTER_SETTINGS,SEARCH_ENGINE_FILTER_SETTINGS)\
+													.abs()
+	metric_value_mean = qc.QualityMetric(accession="MS:4000xxx", name="absolute dppm mean", value=ids_only['mass_error_ppm'].mean())
+	metric_value_std = qc.QualityMetric(accession="MS:4000xxx", name="absolute dppm sigma", value=ids_only['mass_error_ppm'].std())
+	return metric_value_mean, metric_value_std
+# add optional rt of ident ms2 column to id: MS:4000078 ! QC2 sample mass accuracies ???
+# [Term]
+# id: MS:4000xxx
+# name: absolute dppm mean
+# def: "From the distribution of absolute values of observed mass accuracies (MS:4000072) in ppm of identified spectra within the run after user defined acceptance criteria are applied, the mean" [PSI:MS]
+# is_a: MS:4000003 ! single value
+# relationship: has_metric_category MS:4000009 ! ID free metric
+# relationship: has_metric_category MS:4000021 ! MS1 metric
+# relationship: has_value_concept STATO:0000401 ! sample mean
+# relationship: has_value_concept MS:1000014 ! accuracy
+# relationship: has_units UO:0000169 ! parts per million
+# relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+
+# [Term]
+# id: MS:4000xxx
+# name: absolute dppm sigma
+# def: "From the distribution of absolute values () of observed mass accuracies in ppm of identified spectra within the run after user defined acceptance criteria are applied, the sigma value" [PSI:MS]
+# is_a: MS:4000003 ! single value
+# relationship: has_metric_category MS:4000009 ! ID free metric
+# relationship: has_metric_category MS:4000021 ! MS1 metric
+# relationship: has_value_concept STATO:0000237 ! standard deviation
+# relationship: has_units UO:0000169 ! parts per million
+# relationship: has_value_concept MS:1000014 ! accuracy
+# relationship: has_value_type xsd:float ! The allowed value-type for this CV term
 			    
-def calc_metric_idrate(run) -> qc.QualityMetric:
+def calc_metric_idrtrange(run) -> qc.QualityMetric:
+	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
+	metric_value = qc.QualityMetric(accession="MS:4000xxx", 
+								 name="retention time identification range", 
+								 value=[ids_only['RT'].min(),ids_only['RT'].max()])
+	return metric_value
+# [Term]
+# id: MS:4000xxx
+# name: retention time identification range
+# def: "Upper and lower limit of retention time at which spectra are successfully identified." [PSI:MS]
+# is_a: MS:4000004 ! n-tuple
+# relationship: has_metric_category MS:4000009 ! ID free metric
+# relationship: has_metric_category MS:4000012 ! single run based metric
+# relationship: has_metric_category MS:4000016 ! retention time metric
+# relationship: has_units UO:0000010 ! second
+# relationship: has_value_concept STATO:0000035 ! range
+   
+def calc_metric_idrate(run) -> Tuple[qc.QualityMetric]:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	cid = qc.QualityMetric(accession="MS:1003251", 
 				 			name="count of identified spectra", 
@@ -279,11 +324,21 @@ def calc_metric_idrate(run) -> qc.QualityMetric:
 	cms = qc.QualityMetric(accession="MS:4000060", 
 							name="number of MS2 spectra", 
 							value= int(run.base_df['native_id'].nunique()))
-	metric_value = qc.QualityMetric(accession="MS:4000xxx", 
-				 					name="spectra identification ratio", 
-									value= ids_only['native_id'].nunique()/run.base_df['native_id'].nunique())
 	# maybe just report MS:1003251 and MS:4000060 individually and let the report SW deal with ratio building and heatmap scoring?
-	return cid,cms,metric_value
+	# metric_value = qc.QualityMetric(accession="MS:4000xxx", 
+	# 			 					name="spectra identification ratio", 
+	# 								value= ids_only['native_id'].nunique()/run.base_df['native_id'].nunique())
+	return cid,cms
+
+def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
+	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
+	peptide_id = qc.QualityMetric(accession="MS:1003250", 
+				 			name="count of identified peptidoforms", 
+							value= int(ids_only['PeptideSequence'].nunique()))
+	accession_id = qc.QualityMetric(accession="MS:1002404", 
+							name="count of identified proteins", 
+							value= int(ids_only['accession'].nunique()))
+	return peptide_id,accession_id
 
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"
@@ -295,7 +350,7 @@ def calc_metric_idrate(run) -> qc.QualityMetric:
 	required=False, help="Log detail level. (verbosity: debug>info>warn)")
 def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, log):
 	"""
-	...
+	main function controlling command-line call parameters and calling high-level functions
 	"""
 	# set loglevel - switch to match-case for py3.10+
 	lev = {'debug': logging.DEBUG,
@@ -315,7 +370,9 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, lo
 		click.echo(e)
 		print_help()
 	
-	quality_metric_values = [calc_metric_deltam(run), calc_metric_ioncollection(run), calc_metric_missedcleavage(run), *calc_metric_idrate(run)]
+	quality_metric_values = [*calc_metric_deltam(run), calc_metric_ioncollection(run), 
+						  calc_metric_missedcleavage(run), *calc_metric_idrate(run),
+						  *calc_metric_idcounts(run), calc_metric_idrtrange(run)]
 	if dev:
 		for n,df in [("base data frame", run.base_df), ("identifications data frame", run.id_df)]:
 			quality_metric_values.append(

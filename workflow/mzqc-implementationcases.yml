@@ -18,6 +18,6 @@ rmzqc:
 report:
   container: "/hps/nobackup2/proteomics/mzqc-mergereport-usecase.simg"
   memory: 4  # GB, multiplied by the number of attempts
-out_dir: "/tmp/mzqclib-manuscript/test_data/"
-id_param: "/tmp/mzqclib-manuscript/test_data/iPRG2015/comet.params.high-high"
-fasta: "/tmp/mzqclib-manuscript/test_data/iPRG2015/iPRG2015.fasta"
+out_dir: "/tmp/mzqclib-manuscript/test_data/PXD040621/"
+id_param: "/tmp/mzqclib-manuscript/test_data/PXD040621/comet.params.high-high"
+fasta: "/tmp/mzqclib-manuscript/test_data/PXD040621/uniprot-ecoli_k12-10-2023.fasta"

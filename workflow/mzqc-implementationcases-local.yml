@@ -18,6 +18,6 @@ rmzqc:
 report:
   container: "/home/walzer/psi/mzqclib-manuscript/container/merge-and-report/mergereport-usecase.simg"
   memory: 4
-out_dir: "/home/walzer/psi/mzqclib-manuscript/test_data/"
-id_param: "/home/walzer/psi/mzqclib-manuscript/test_data/iPRG2015/comet.params.high-high"
-fasta: "/home/walzer/psi/mzqclib-manuscript/test_data/iPRG2015/iPRG2015.fasta"
+out_dir: "/home/walzer/psi/mzqclib-manuscript/test_data/PXD040621/"
+id_param: "/home/walzer/psi/mzqclib-manuscript/test_data/PXD040621/comet.params.high-high"
+fasta: "/home/walzer/psi/mzqclib-manuscript/test_data/PXD040621/uniprot-ecoli_k12-10-2023.fasta"

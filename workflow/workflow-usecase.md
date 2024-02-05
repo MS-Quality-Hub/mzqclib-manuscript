@@ -1,4 +1,9 @@
-Current capability
+## Create a workflowchart from nextflow
+To produce a mermaid file for 'pretty' workflow visualisation from the workflow, use
+```
+nextflow run 'mzqc-usecases.nf'  -with-dag flowchart.mmd --run test.raw -stub
+```
+## Current capability:
 ```mermaid
 flowchart TD
     p0([Channel.fromPath])
@@ -15,7 +20,7 @@ flowchart TD
     p4 -->|mzqc_channel| p5    
 ```
 
-Originally planned:
+## Originally planned:
 ```mermaid
 flowchart TD
     p0([Channel.fromPath])

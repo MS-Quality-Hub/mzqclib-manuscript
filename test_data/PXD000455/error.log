@@ -1,0 +1,11 @@
+[INFO] XMLStreamReaderImpl: Data buffer increased to 16384
+[INFO] XMLStreamReaderImpl: Data buffer increased to 32768
+[INFO] XMLStreamReaderImpl: Data buffer increased to 65536
+[INFO] XMLStreamReaderImpl: Data buffer increased to 131072
+[INFO] XMLStreamReaderImpl: Data buffer increased to 262144
+[INFO] XMLStreamReaderImpl: Data buffer increased to 524288
+Processing file: 7102.mzML
+RT and m/z range...
+TIC and Base Peak values...
+Validation successful!
+Saving output to 'PXD000455/7102.jmzqc.mzqc'.

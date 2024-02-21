@@ -274,48 +274,23 @@ def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 	metric_value_mean = qc.QualityMetric(accession="MS:4000xxx", name="absolute dppm mean", value=ids_only['mass_error_ppm'].mean())
 	metric_value_std = qc.QualityMetric(accession="MS:4000xxx", name="absolute dppm sigma", value=ids_only['mass_error_ppm'].std())
 	return metric_value_mean, metric_value_std
-# add optional rt of ident ms2 column to id: MS:4000078 ! QC2 sample mass accuracies ???
-# [Term]
-# id: MS:4000xxx
-# name: absolute dppm mean
-# def: "From the distribution of absolute values of observed mass accuracies (MS:4000072) in ppm of identified spectra within the run after user defined acceptance criteria are applied, the mean" [PSI:MS]
-# is_a: MS:4000003 ! single value
-# relationship: has_metric_category MS:4000009 ! ID free metric
-# relationship: has_metric_category MS:4000021 ! MS1 metric
-# relationship: has_value_concept STATO:0000401 ! sample mean
-# relationship: has_value_concept MS:1000014 ! accuracy
-# relationship: has_units UO:0000169 ! parts per million
-# relationship: has_value_type xsd:float ! The allowed value-type for this CV term
-
-# [Term]
-# id: MS:4000xxx
-# name: absolute dppm sigma
-# def: "From the distribution of absolute values () of observed mass accuracies in ppm of identified spectra within the run after user defined acceptance criteria are applied, the sigma value" [PSI:MS]
-# is_a: MS:4000003 ! single value
-# relationship: has_metric_category MS:4000009 ! ID free metric
-# relationship: has_metric_category MS:4000021 ! MS1 metric
-# relationship: has_value_concept STATO:0000237 ! standard deviation
-# relationship: has_units UO:0000169 ! parts per million
-# relationship: has_value_concept MS:1000014 ! accuracy
-# relationship: has_value_type xsd:float ! The allowed value-type for this CV term
+	# TODO add optional rt of ident ms2 column to id: MS:4000078 ! QC2 sample mass accuracies ???
 			    
-def calc_metric_idrtrange(run) -> qc.QualityMetric:
+def calc_metric_idrtquarters(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
+
+	idf_rtsort = ids_only.sort_values(by='RT')
+	quarter_ids = idf_rtsort.shape[0] // 4
+	idf_rtsort['quarter'] = np.repeat(np.arange(1, 5), [quarter_ids]*3 + [idf_rtsort.shape[0] - quarter_ids*3])  # label row with quarter
+
+	quarter_interval_durations = idf_rtsort.groupby('quarter')['RT'].max() - idf_rtsort.groupby('quarter')['RT'].min()
+	ratios = quarter_interval_durations / run.base_df['RT'].max()
+
 	metric_value = qc.QualityMetric(accession="MS:4000xxx", 
-								 name="retention time identification range", 
-								 value=[ids_only['RT'].min(),ids_only['RT'].max()])
+								 name="identified MS2 quarter RT fraction",
+								 value=ratios.to_list())
 	return metric_value
-# [Term]
-# id: MS:4000xxx
-# name: retention time identification range
-# def: "Upper and lower limit of retention time at which spectra are successfully identified." [PSI:MS]
-# is_a: MS:4000004 ! n-tuple
-# relationship: has_metric_category MS:4000009 ! ID free metric
-# relationship: has_metric_category MS:4000012 ! single run based metric
-# relationship: has_metric_category MS:4000016 ! retention time metric
-# relationship: has_units UO:0000010 ! second
-# relationship: has_value_concept STATO:0000035 ! range
-   
+
 def calc_metric_idrate(run) -> Tuple[qc.QualityMetric]:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	cid = qc.QualityMetric(accession="MS:1003251", 

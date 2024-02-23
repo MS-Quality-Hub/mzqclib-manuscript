@@ -347,7 +347,7 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, lo
 	
 	quality_metric_values = [*calc_metric_deltam(run), calc_metric_ioncollection(run), 
 						  calc_metric_missedcleavage(run), *calc_metric_idrate(run),
-						  *calc_metric_idcounts(run), calc_metric_idrtrange(run)]
+						  *calc_metric_idcounts(run), calc_metric_idrtquarters(run)]
 	if dev:
 		for n,df in [("base data frame", run.base_df), ("identifications data frame", run.id_df)]:
 			quality_metric_values.append(

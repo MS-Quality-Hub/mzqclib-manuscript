@@ -269,12 +269,11 @@ def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 	ids_only['mass_error_ppm'] = ids_only.apply(lambda row : 
 									getMassError(row['calculatedMassToCharge'], 
 						 						 row['experimentalMassToCharge']), axis = 1)\
-													.clip(-SEARCH_ENGINE_FILTER_SETTINGS,SEARCH_ENGINE_FILTER_SETTINGS)\
-													.abs()
-	metric_value_mean = qc.QualityMetric(accession="MS:4000xxx", name="absolute dppm mean", value=ids_only['mass_error_ppm'].mean())
-	metric_value_std = qc.QualityMetric(accession="MS:4000xxx", name="absolute dppm sigma", value=ids_only['mass_error_ppm'].std())
+													.clip(-SEARCH_ENGINE_FILTER_SETTINGS,SEARCH_ENGINE_FILTER_SETTINGS)
+	metric_value_mean = qc.QualityMetric(accession="MS:4000xxx", name="dppm mean", value=ids_only['mass_error_ppm'].mean())
+	metric_value_std = qc.QualityMetric(accession="MS:4000xxx", name="dppm sigma", value=ids_only['mass_error_ppm'].std())
 	return metric_value_mean, metric_value_std
-	# TODO add optional rt of ident ms2 column to id: MS:4000078 ! QC2 sample mass accuracies ???
+	# TODO ??? add optional rt of ident ms2 column to id: MS:4000078 ! QC2 sample mass accuracies ???
 			    
 def calc_metric_idrtquarters(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
@@ -299,10 +298,6 @@ def calc_metric_idrate(run) -> Tuple[qc.QualityMetric]:
 	cms = qc.QualityMetric(accession="MS:4000060", 
 							name="number of MS2 spectra", 
 							value= int(run.base_df['native_id'].nunique()))
-	# maybe just report MS:1003251 and MS:4000060 individually and let the report SW deal with ratio building and heatmap scoring?
-	# metric_value = qc.QualityMetric(accession="MS:4000xxx", 
-	# 			 					name="spectra identification ratio", 
-	# 								value= ids_only['native_id'].nunique()/run.base_df['native_id'].nunique())
 	return cid,cms
 
 def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
@@ -318,12 +313,12 @@ def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"
 @click.argument('mzid_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
-@click.argument('output_filepath', type=click.Path(writable=True, file_okay=False) )  # help="The output destination path for the resulting mzqc"
+@click.argument('mzqc_output', type=click.Path(writable=True, dir_okay=False) )  # help="The output path for the resulting mzqc"
 @click.option('--dev',  is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics').")
 @click.option('--log', type=click.Choice(['debug', 'info', 'warn'], case_sensitive=False),
 	default='warn', show_default=True,
 	required=False, help="Log detail level. (verbosity: debug>info>warn)")
-def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, log):
+def simple_qc_metric_calculator(mzml_input, mzid_input, mzqc_output, dev, log):
 	"""
 	main function controlling command-line call parameters and calling high-level functions
 	"""
@@ -333,11 +328,6 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, lo
 		'warn': logging.WARN }
 	logging.basicConfig(format='%(levelname)s:%(message)s', level=lev[log])
 
-	if not any([mzml_input, mzid_input, output_filepath]):
-		print_help()
-
-	# mzml_input = "test_data/iPRG2015/JD_06232014_sample3_C.mzML"
-	# mzid_input = "test_data/iPRG2015/JD_06232014_sample3_C.mzid"
 	try:
 		run = load_mzml(mzml_input)
 		run = load_ids(run, mzid_input)
@@ -354,7 +344,8 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, output_filepath, dev, lo
 				qc.QualityMetric(accession="MS:4000005", name=n, value=df.where((pd.notnull(df)), None).to_dict(orient='list'))
 			)
 	mzqc = construct_mzqc(run, quality_metric_values)
-	with open(os.path.join(output_filepath, run.run_name+".mzQC"), "w") as file:
+
+	with open(os.path.join(mzqc_output), "w") as file:
 		file.write(qc.JsonSerialisable.ToJson(mzqc, readability=1))
 	
 if __name__ == '__main__':

@@ -1,29 +1,28 @@
 # mzQC Implementation-Cases (formerly usecases)
-The main focus of this workflow is not to analyse data, but to showcase the existing implementations of mzQC, how to combine these, and how to quickly create new uses. Basic knowledge of nextflow and singularity is recommended, since you will need both. 
+The main focus of this workflow is _not_ to analyse data, but to _showcase_ the existing implementations of mzQC, how to combine them or their result files, and how to quickly create new uses. Basic knowledge of the command line and singularity is recommended, since you will need both. 
 
 ## The Workflow
-
-Execute from the repository base directory:
-```nextflow
-nextflow run 'workflow/mzqc-implementationcases.nf' -params-file 'workflow/mzqc-implementationcases-local.yml' -c 'workflow/nf.config' --run 'test_data/20181113_010_autoQC01.raw'
+```mermaid
+flowchart TD
+    p0([Channel.fromPath])
+    p1[rawfileconversion]
+    p2[jmzqc]
+    p3[rmzqc]
+    p4[pymzqc]
+    p5[mzqcmerger]
+    p6[Report or Archival]
+    p0 -->|run_channel| p1
+    p1 -->|mzml_channel| p2
+    p1 -->|mzml_channel| p3
+    p1 -->|mzml_channel| p4
+    p2 -->|mzqc_channel| p5
+    p3 -->|mzqc_channel| p5
+    p4 -->|mzqc_channel| p5
+    p6 -->|mzqc_channel| p6    
 ```
-
-> NOTE: nextflow 22.04.5 does not escape the input in bash scripts if the param argument is escaped - unfortunate (as are all situations that need escaping, pun intended)
-
-As you can see from the example call above, we use two configuration files. The first, `-c 'workflow/nf.config'` is there only to instruct nextflow to use containers for each workflow step, and use singularity at that. If this is your default setting, then you can skip this input. The `.yml` file specifies for the workflow where each of the containers referenced in the workflow definition are in the local system. It also specifies the amount of memory that should be made available for the respective container and how often retry should be attempted in case of local compute interruption. We refer to the [nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for details. Please make sure to update the `.yml` file to reflect the path to your locally build containers. 
 
 ### Bash
-In case you want to use bash (or other cmdl), I assume you know what you're doing, so take following command hint _as is_; you need to take care of all the local paths in the commands anyway.
-
-```
-for f in *.mzML; do bsub singularity exec /tmp/biocontainers-comet-ms\:2023010.simg comet.exe -Pcomet.params.high-high -Duniprot-ecoli_k12-10-2023.fasta $f; done
-```
-
-```
-for f in *.mzML; do bsub singularity exe /tmp/pymzqc-usecase.simg pymzqc-usecase.py $f ${f%.*}.mzid ${f%.*}.pymzqc.mzqc; done
-for f in *.mzML; do bsub singularity exec /tmp/rmzqc-usecase.simg rmzqc-cli.sh $f ${f%.*}.rmzqc.mzqc; done
-for f in *.mzML; do bsub singularity exe /tmp/jmzqc-usecase.simg jmzqc-cli.sh -f $f -o ${f%.*}.jmzqc.mzqc; done
-```
+You can use `workflow.sh` to automate the example workflow. You will need to accomodate for where your input and config files are, take a look inside the script how to.
 
 ### Workflow Data Input 
 We tested several data sets to most effectively demonstrate the capabilities of the mzQC implemntations in a short form. Pease see the last entry for the current, i.e.latest test input.
@@ -58,22 +57,8 @@ We tested several data sets to most effectively demonstrate the capabilities of 
 - PXD040621: https://ftp.pride.ebi.ac.uk/pride/data/archive/2023/07/PXD040621/
 > Study on broccoli derived sulforaphane influencing bacteria of the gut-microbiome. Includes a simple proteomics experiment, 8 batches of E. coli grown in two groups of media, measured with QExactive+, label-free quantitative analysis with MQ followed. As a bonus, the publication also has a related metabolomics experiment.
 
-### Workflow Flowchart 
+### Data analysis
+Once the script is finshed or you have successfully created mzqc files from your input with all metric calculating scripts provided, then merged the mzqc files, you are ready to create a report or interactively explore the QC of your input with the `mzqclibs-notebook.ipynb`.
 
-## Current capability:
-```mermaid
-flowchart TD
-    p0([Channel.fromPath])
-    p1[rawfileconversion]
-    p2[jmzqc]
-    p3[rmzqc]
-    p4[pymzqc]
-    p5[Report or Archival]
-    p0 -->|run_channel| p1
-    p1 -->|mzml_channel| p2
-    p1 -->|mzml_channel| p3
-    p2 -->|mzqc_channel| p4
-    p3 -->|mzqc_channel| p4
-    p4 -->|mzqc_channel| p5    
-```
+### Workflow Flowchart 
 For more details on the flowchart generation for the workflow, see [here](workflow-usecase.md)

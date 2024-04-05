@@ -18,14 +18,14 @@ flowchart TD
     p2 -->|mzqc_channel| p5
     p3 -->|mzqc_channel| p5
     p4 -->|mzqc_channel| p5
-    p6 -->|mzqc_channel| p6    
+    p5 -->|mzqc_channel| p6    
 ```
 
 ### Bash
-You can use `workflow.sh` to automate the example workflow. You will need to accomodate for where your input and config files are, take a look inside the script how to.
+You can use `workflow.sh` to automate the example workflow. You will need to accomodate for where your input and config files are, take a look inside the script how to. Singularity must also be available.
 
 ### Workflow Data Input 
-We tested several data sets to most effectively demonstrate the capabilities of the mzQC implemntations in a short form. Pease see the last entry for the current, i.e.latest test input.
+We tested several data sets to most effectively demonstrate the capabilities of the mzQC implementations in a short form. Pease see the last entry for the current, i.e.latest test input.
 
 1. QC Sample run (BSA + iRT standard) from rawR
 - Folder autoQC

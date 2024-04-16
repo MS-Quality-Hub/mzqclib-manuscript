@@ -3,16 +3,18 @@ from collections import defaultdict
 import os
 import numpy as np
 import pandas as pd
-from pyteomics import mzml, mzid, parser as fastaparser
+import tempfile
+from lxml import etree
+from pyteomics import mzml, parser as fastaparser
 from typing import List, Dict, Union, Tuple, Any
 from dataclasses import dataclass, field
 import pronto
-from lxml import etree
 from datetime import datetime, timedelta
 import hashlib
 from mzqc import MZQCFile as qc
 import click
 import logging
+import crema
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 INFO = '''
@@ -27,7 +29,10 @@ class Run:
 	base_df: pd.DataFrame = pd.DataFrame()
 	id_df: pd.DataFrame = pd.DataFrame()
 	mzml_path: str = ""
-	mzid_path: str = ""
+	tide_target_file: str = ""  # tide-search target results file
+	tide_decoy_file: str = ""  # tide-search decoy results file
+	tide_td_pair_file: str = ""  # tide-index target|decoy pair file
+	crema_fdr: int = 100  # FDR chosen for crema confidence filter
 	instrument_type: pronto.Term = None
 	checksum: str = ""
 
@@ -41,6 +46,9 @@ def print_help():
 	ctx.exit()
 
 def pad_lists(listdict: Dict[str,List[Any]], padlist: List[str]): 
+	"""
+	helper function to make mzML consumption more accessible
+	"""
 	for pl in padlist:
 		listdict[pl].append(np.nan)
 
@@ -100,32 +108,6 @@ def getMassError(theo_mz: float, exp_mz: float, use_ppm: bool = True) -> float:
 	if use_ppm:
 		error = error / (theo_mz * 1e-6)
 	return error
-
-def comet_evalue(psm):
-	return next(iter(psm.get("SpectrumIdentificationItem"))).get("Comet:expectation value")
-
-def getMetricSourceFramesIdent(mzid_content) -> pd.DataFrame:
-	data_acquisition: Dict[str,List[Any]] = defaultdict(list)
-	for qvt in mzid_content:
-		psm_rep = next(iter(qvt[3]['SpectrumIdentificationItem']))
-		data_acquisition['scan_id'].append(qvt[3]['spectrumID'])
-		# data_acquisition['rt'].append(qvt[3]['retention time'])  # not need with later base_df merge 
-		data_acquisition['fd-ratio'].append(qvt[0])		
-		data_acquisition['q-value'].append(qvt[2])		
-		data_acquisition['chargeState'].append(psm_rep['chargeState'])
-		data_acquisition['experimentalMassToCharge'].append(psm_rep['experimentalMassToCharge'])
-		data_acquisition['calculatedMassToCharge'].append(psm_rep['calculatedMassToCharge'])
-		data_acquisition['isDecoy'].append(qvt[1])
-		data_acquisition['PeptideSequence'].append(psm_rep['PeptideSequence'])
-		data_acquisition['accession'].append(next(iter(psm_rep['PeptideEvidenceRef']))['accession'])
-		data_acquisition['number_matched_peaks'].append(psm_rep['number of matched peaks'])
-		data_acquisition['number_unmatched_peak'].append(psm_rep['number of unmatched peaks'])
-		data_acquisition['Comet:xcorr'].append(psm_rep['Comet:xcorr'])
-		data_acquisition['Comet:deltacn'].append(psm_rep['Comet:deltacn'])
-		data_acquisition['Comet:spscore'].append(psm_rep['Comet:spscore'])
-		data_acquisition['Comet:sprank'].append(psm_rep['Comet:sprank'])
-		data_acquisition['Comet:expectation value'].append(psm_rep['Comet:expectation value'])
-	return pd.DataFrame(data_acquisition)
 
 def getMetricSourceFramesBase(run: mzml.MzML) -> pd.DataFrame:     
 	data_acquisition: Dict[str,List[Any]] = defaultdict(list)
@@ -192,7 +174,7 @@ def load_mzml(mzml_path: str) -> Run:
 
 	with mzml.read(mzml_path) as reader:
 		base = getMetricSourceFramesBase(reader)
-	base["scan_id"] = base.native_id.str.extract("scan=(\d+)$")
+	base["scan_id"] = base.native_id.str.extract("scan=(\d+)$").astype(int)
 
 	# some things need to come from the mzml directly via xpath
 	# Instrument Type
@@ -214,19 +196,23 @@ def load_mzml(mzml_path: str) -> Run:
 
 	return Run(run_name=name, start_time=strt, completion_time=cmplt, base_df=base, mzml_path=mzml_path, instrument_type=itype, checksum=chksm)
 
-def load_ids(run: Run, mzid_path:str, fdr: int=5) -> Run:
-	try:
-		# BTW this is what is dead slow in the usecase processing pipeline
-		pre_fdr = mzid.qvalues(mzid_path, key=comet_evalue, reverse=False, full_output=True)
-		ids = getMetricSourceFramesIdent(pre_fdr)
-		print("psms recorded",len(ids))
-		if 0 < fdr < 100: 
-			ids = ids[(ids['isDecoy'] == False) & (ids['q-value'] < fdr/100 )].drop_duplicates(subset='scan_id', keep='first')
-		print("psms filtered",len(ids))
-	except:
-		ids = None
-	run.mzid_path = mzid_path
-	run.id_df = ids
+def load_ids(run: Run, tide_target_file:str, tide_decoy_file:str, tide_td_pair_file:str, fdr: int=1) -> Run:
+	psms = crema.read_tide([tide_target_file, tide_decoy_file], pairing_file_name=tide_td_pair_file)
+	results =  psms.assign_confidence(score_column="xcorr score", desc=True, pep_fdr_type="peptide-only", threshold=fdr/100)
+	with tempfile.TemporaryDirectory() as tmpdirname:
+		results.to_txt(output_dir=tmpdirname, file_root="simp", sep="\t", decoys=False)
+		prt_df = pd.read_csv(tmpdirname+"/simp.crema.proteins.txt", sep="\t")
+		pep_df = pd.read_csv(tmpdirname+"/simp.crema.peptides.txt", sep="\t").rename(columns={"scan": "scan_id"})
+
+	pep_df = pep_df.merge(pd.read_csv(tide_target_file, sep="\t").rename(columns={"scan": "scan_id"})[['scan_id','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on='scan_id').rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
+	pep_df['calculatedMassToCharge'] = pep_df['peptide mass']/pep_df['charge']
+
+	run.tide_target_file = tide_target_file
+	run.tide_decoy_file = tide_decoy_file
+	run.tide_td_pair_file = tide_td_pair_file
+	run.crema_fdr = fdr
+
+	run.id_df = pep_df[pep_df['accept']==True]
 	return run
 
 def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
@@ -235,7 +221,7 @@ def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
 	infi1.fileProperties.append(qc.CvParameter(run.instrument_type.id, run.instrument_type.name))
 	infi1.fileProperties.append(qc.CvParameter("MS:1000747", "completion time", run.completion_time))
 	infi2 = qc.InputFile(name=run.mzid_path, location=run.mzid_path, fileFormat=qc.CvParameter("MS:1002073", "mzIdentML format"))
-	anso1 = qc.AnalysisSoftware(accession="MS:1002251", name="Comet", version="version 2023.01 rev. 0", uri="https://github.com/UWPR/Comet")
+	anso1 = qc.AnalysisSoftware(accession="MS:1002575", name="Tide", version="4.2", uri="https://crux.ms/")
 	anso2 = qc.AnalysisSoftware(accession="MS:1003357", name="simple qc metric calculator", version="0", uri="https://github.com/MS-Quality-Hub/mzqclib-manuscript")
 	meta = qc.MetaDataParameters(inputFiles=[infi1, infi2],analysisSoftware=[anso1, anso2], label="implementation-case demo")
 	rq = qc.RunQuality(metadata=meta, qualityMetrics=quality_metric_values)
@@ -256,7 +242,7 @@ def calc_metric_ioncollection(run) -> qc.QualityMetric:
 
 def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
-	mcs =[len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['PeptideSequence'].to_list()]
+	mcs =[len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['sequence'].to_list()]
 	metric_value = qc.QualityMetric(accession="MS:4000005", name="enzyme digestion parameters", value={
 											'MS:1003169': ids_only['PeptideSequence'].to_list(),
 											"MS:1000767": ids_only['native_id'].to_list(), 
@@ -265,7 +251,7 @@ def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 
 def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
-	SEARCH_ENGINE_FILTER_SETTINGS = 20
+	SEARCH_ENGINE_FILTER_SETTINGS = 50
 	ids_only['mass_error_ppm'] = ids_only.apply(lambda row : 
 									getMassError(row['calculatedMassToCharge'], 
 						 						 row['experimentalMassToCharge']), axis = 1)\
@@ -304,21 +290,24 @@ def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	peptide_id = qc.QualityMetric(accession="MS:1003250", 
 				 			name="count of identified peptidoforms", 
-							value= int(ids_only['PeptideSequence'].nunique()))
+							value= int(ids_only['sequence'].nunique()))
 	accession_id = qc.QualityMetric(accession="MS:1002404", 
 							name="count of identified proteins", 
-							value= int(ids_only['accession'].nunique()))
+							value= int(ids_only['protein id'].nunique()))
 	return peptide_id,accession_id
 
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"
-@click.argument('mzid_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
+@click.argument('crux_peptide_file', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
+@click.argument('crux_protein_file', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
+@click.argument('crux_td_pair_file', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
 @click.argument('mzqc_output', type=click.Path(writable=True, dir_okay=False) )  # help="The output path for the resulting mzqc"
-@click.option('--dev',  is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics').")
+@click.option('--fdr', show_default=True, default=1, help="The FDR value in percent.")
+@click.option('--dev', is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics').")
 @click.option('--log', type=click.Choice(['debug', 'info', 'warn'], case_sensitive=False),
 	default='warn', show_default=True,
 	required=False, help="Log detail level. (verbosity: debug>info>warn)")
-def simple_qc_metric_calculator(mzml_input, mzid_input, mzqc_output, dev, log):
+def simple_qc_metric_calculator(mzml_input, crux_peptide_file, crux_protein_file, crux_td_pair_file, mzqc_output, fdr, dev, log):
 	"""
 	main function controlling command-line call parameters and calling high-level functions
 	"""
@@ -330,7 +319,7 @@ def simple_qc_metric_calculator(mzml_input, mzid_input, mzqc_output, dev, log):
 
 	try:
 		run = load_mzml(mzml_input)
-		run = load_ids(run, mzid_input)
+		run = load_ids(run, crux_peptide_file, crux_protein_file, crux_td_pair_file, fdr)
 	except Exception as e:
 		click.echo(e)
 		print_help()

@@ -1,7 +1,7 @@
 {
   "mzQC": {
     "version": "1.0.0",
-    "creationDate": "2023-10-25T10:54:57",
+    "creationDate": "2024-04-17T13:31:07",
     "contactName": "Chris Bielow",
     "contactAddress": "chris.bielow@bsc.fu-berlin.de",
     "description": "Ion Injection times for PXD000455",
@@ -65,8 +65,8 @@
     "controlledVocabularies": [
       {
         "name": "Proteomics Standards Initiative Mass Spectrometry Ontology",
-        "uri": "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.132/psi-ms.obo",
-        "version": "4.1.132"
+        "uri": "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.147/psi-ms.obo",
+        "version": "4.1.147"
       }
     ]
   }

@@ -1,15 +1,25 @@
 Bootstrap: docker
-From: python:3.8-buster
+From: python:3.10-bookworm
 
 includecmd: yes
-#%environment
+%environment
+	export LC_ALL=C
 #	export PATH=/opt/pymzqc-usecase/bin/:${PATH}
 
 %files
    pymzqc-usecase.py /usr/local/bin/pymzqc-usecase.py
+   pymzqc-merge.py /usr/local/bin/pymzqc-merge.py
 
 %post
+	apt update && apt install -y  build-essential && apt clean && rm -rf /var/lib/apt/lists/*
 	pip install --upgrade pip setuptools wheel
 	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc2
-	pip install lxml numpy pandas scipy pyteomics click matplotlib
+	pip install lxml numpy pandas scipy pyteomics click matplotlib crema-ms
 	chmod ugo+rx /usr/local/bin/pymzqc-usecase.py
+	chmod ugo+rx /usr/local/bin/pymzqc-merge.py
+	TEMPD=`mktemp --directory`
+	TEMPF=`mktemp`
+	wget -q -O $TEMPF https://noble.gs.washington.edu/crux-downloads/crux-4.2/crux-4.2.Linux.x86_64.zip
+	unzip -d $TEMPD $TEMPF
+	mv $TEMPD/*/bin/crux /usr/local/bin/
+	rm -r $TEMPF $TEMPD

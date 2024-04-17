@@ -196,15 +196,20 @@ def load_mzml(mzml_path: str) -> Run:
 
 	return Run(run_name=name, start_time=strt, completion_time=cmplt, base_df=base, mzml_path=mzml_path, instrument_type=itype, checksum=chksm)
 
-def load_ids(run: Run, tide_target_file:str, tide_decoy_file:str, tide_td_pair_file:str, fdr: int=1) -> Run:
-	psms = crema.read_tide([tide_target_file, tide_decoy_file], pairing_file_name=tide_td_pair_file)
+def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str, tide_search:str, fdr: int=1) -> Run:
+	tide_target_file = os.path.join(crux_tide_search,tide_search+'.target.txt')
+	tide_decoy_file = os.path.join(crux_tide_search,tide_search+'.decoy.txt')
+	tide_td_pair_file = os.path.join(crux_tide_index,tide_index)
+	psms = crema.read_tide([tide_target_file, tide_decoy_file], 
+						pairing_file_name=tide_td_pair_file,
+						decoy_prefix='DECOY_')
 	results =  psms.assign_confidence(score_column="xcorr score", desc=True, pep_fdr_type="peptide-only", threshold=fdr/100)
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		results.to_txt(output_dir=tmpdirname, file_root="simp", sep="\t", decoys=False)
 		prt_df = pd.read_csv(tmpdirname+"/simp.crema.proteins.txt", sep="\t")
 		pep_df = pd.read_csv(tmpdirname+"/simp.crema.peptides.txt", sep="\t").rename(columns={"scan": "scan_id"})
 
-	pep_df = pep_df.merge(pd.read_csv(tide_target_file, sep="\t").rename(columns={"scan": "scan_id"})[['scan_id','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on='scan_id').rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
+	pep_df = pep_df.merge(pd.read_csv(os.path.join(crux_tide_search,tide_search+'.target.txt'), sep="\t").rename(columns={"scan": "scan_id"})[['scan_id','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on='scan_id').rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
 	pep_df['calculatedMassToCharge'] = pep_df['peptide mass']/pep_df['charge']
 
 	run.tide_target_file = tide_target_file
@@ -220,7 +225,7 @@ def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
 	infi1.fileProperties.append(qc.CvParameter("MS:1003151", "SHA-256", run.checksum))
 	infi1.fileProperties.append(qc.CvParameter(run.instrument_type.id, run.instrument_type.name))
 	infi1.fileProperties.append(qc.CvParameter("MS:1000747", "completion time", run.completion_time))
-	infi2 = qc.InputFile(name=run.mzid_path, location=run.mzid_path, fileFormat=qc.CvParameter("MS:1002073", "mzIdentML format"))
+	infi2 = qc.InputFile(name=run.tide_target_file, location=run.tide_target_file, fileFormat=qc.CvParameter("MS:1000914", "tab delimited text format"))
 	anso1 = qc.AnalysisSoftware(accession="MS:1002575", name="Tide", version="4.2", uri="https://crux.ms/")
 	anso2 = qc.AnalysisSoftware(accession="MS:1003357", name="simple qc metric calculator", version="0", uri="https://github.com/MS-Quality-Hub/mzqclib-manuscript")
 	meta = qc.MetaDataParameters(inputFiles=[infi1, infi2],analysisSoftware=[anso1, anso2], label="implementation-case demo")
@@ -244,7 +249,7 @@ def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	mcs =[len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['sequence'].to_list()]
 	metric_value = qc.QualityMetric(accession="MS:4000005", name="enzyme digestion parameters", value={
-											'MS:1003169': ids_only['PeptideSequence'].to_list(),
+											'MS:1003169': ids_only['sequence'].to_list(),
 											"MS:1000767": ids_only['native_id'].to_list(), 
 											"MS:1000927": mcs})
 	return metric_value
@@ -298,16 +303,17 @@ def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
 
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"
-@click.argument('crux_peptide_file', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
-@click.argument('crux_protein_file', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
-@click.argument('crux_td_pair_file', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
+@click.argument('crux_tide_index', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
+@click.argument('crux_tide_search', type=click.Path(exists=True,readable=True) )  # help="The file with the spectrum identifications to analyse"
 @click.argument('mzqc_output', type=click.Path(writable=True, dir_okay=False) )  # help="The output path for the resulting mzqc"
 @click.option('--fdr', show_default=True, default=1, help="The FDR value in percent.")
-@click.option('--dev', is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics').")
+@click.option('--tide_index', show_default=True, default="tide-index.peptides.txt", help="The tide index peptide-pair filename. (Needs to be inside the tide-index directory!)")
+@click.option('--tide_search', show_default=True, default="tide-search", help="The tide search file name root (ending in .target.txt and .decoy.txt respectively).")
+@click.option('--dev', is_flag=True, show_default=True, default=False, help="Add dataframes to the mzQC (as unofficial 'metrics', which produces a pymzqc readable though non-standard-conform mzqc file).")
 @click.option('--log', type=click.Choice(['debug', 'info', 'warn'], case_sensitive=False),
 	default='warn', show_default=True,
 	required=False, help="Log detail level. (verbosity: debug>info>warn)")
-def simple_qc_metric_calculator(mzml_input, crux_peptide_file, crux_protein_file, crux_td_pair_file, mzqc_output, fdr, dev, log):
+def simple_qc_metric_calculator(mzml_input, crux_tide_index, crux_tide_search, mzqc_output, fdr, tide_index, tide_search, dev, log):
 	"""
 	main function controlling command-line call parameters and calling high-level functions
 	"""
@@ -319,7 +325,7 @@ def simple_qc_metric_calculator(mzml_input, crux_peptide_file, crux_protein_file
 
 	try:
 		run = load_mzml(mzml_input)
-		run = load_ids(run, crux_peptide_file, crux_protein_file, crux_td_pair_file, fdr)
+		run = load_ids(run, crux_tide_index, crux_tide_search, tide_index, tide_search, fdr)
 	except Exception as e:
 		click.echo(e)
 		print_help()

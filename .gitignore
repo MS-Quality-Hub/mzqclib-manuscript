@@ -9,7 +9,17 @@
 
 **/.mypy_cache
 
-test_data/
 PRIDE-Contaminants/
 container/jmzqc-usecase/repo
 container/pymzqc-usecase/ann-solo-git
+
+test_data/misc/*
+test_data/iPRG2015/*.mzML
+test_data/iPRG2015/*.mzid
+test_data/PXD000455/*.mzML
+test_data/PXD000455/*.mzid
+test_data/autoQC/*.raw
+test_data/autoQC/*.mzML
+test_data/autoQC/*.mzid
+
+test_data/PXD040621/Ecoli_proteome_analysis.zip

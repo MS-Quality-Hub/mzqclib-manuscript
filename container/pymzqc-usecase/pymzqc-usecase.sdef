@@ -1,35 +1,25 @@
 Bootstrap: docker
-From: python:3.8-buster
+From: python:3.10-bookworm
 
 includecmd: yes
-#%environment
+%environment
+	export LC_ALL=C
 #	export PATH=/opt/pymzqc-usecase/bin/:${PATH}
 
 %files
    pymzqc-usecase.py /usr/local/bin/pymzqc-usecase.py
-   ann_solo.ini /opt/ann_solo.ini
-   ann-solo-git /opt/ann-solo-git
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.sptxt /opt/speclibs/
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.splib /opt/speclibs/
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.spidx /opt/speclibs/
-   ../../Contaminants-QC/result/PRIDE_Contaminants_unique_targetdecoy.pepidx /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.sptxt /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.splib /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.spidx /opt/speclibs/
-   ../../Contaminants-QC/result/NIST_bsa_IT_unique_targetdecoy.pepidx /opt/speclibs/
-   ../../workflow/example_merge_of_mzqcs.py /usr/local/bin/example_merge_of_mzqcs.py
-   ../../workflow/example_report_from_mzqc.py /usr/local/bin/example_report_from_mzqc.py
+   pymzqc-merge.py /usr/local/bin/pymzqc-merge.py
 
 %post
-	apt update
-	apt install -q --assume-yes wget unzip xauth git vim build-essential
+	apt update && apt install -y  build-essential && apt clean && rm -rf /var/lib/apt/lists/*
 	pip install --upgrade pip setuptools wheel
-	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc1
-	pip install numpy pandas scipy pyteomics click matplotlib
-	pip install faiss-gpu spectrum_utils
-	#pip install ann_solo
-	#pip install git+https://github.com/bittremieux/ANN-SoLo.git#subdirectory=src
-	pip install /opt/ann-solo-git/src
-	chmod ugo+rx /usr/local/bin/example_merge_of_mzqcs.py
-	chmod ugo+rx /usr/local/bin/example_report_from_mzqc.py
+	pip install git+https://github.com/MS-Quality-hub/pymzqc.git@v1.0.0rc2
+	pip install lxml numpy pandas scipy pyteomics click matplotlib crema-ms
 	chmod ugo+rx /usr/local/bin/pymzqc-usecase.py
+	chmod ugo+rx /usr/local/bin/pymzqc-merge.py
+	TEMPD=`mktemp --directory`
+	TEMPF=`mktemp`
+	wget -q -O $TEMPF https://noble.gs.washington.edu/crux-downloads/crux-4.2/crux-4.2.Linux.x86_64.zip
+	unzip -d $TEMPD $TEMPF
+	mv $TEMPD/*/bin/crux /usr/local/bin/
+	rm -r $TEMPF $TEMPD

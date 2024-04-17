@@ -1,0 +1,73 @@
+{
+  "mzQC": {
+    "version": "1.0.0",
+    "creationDate": "2024-04-17T13:31:46",
+    "contactName": "Chris Bielow",
+    "contactAddress": "chris.bielow@bsc.fu-berlin.de",
+    "description": "Ion Injection times for PXD000455",
+    "runQualities": [
+      {
+        "metadata": {
+          "label": "20220830_JL-4884_Forster_Ecoli_Suf_rep1_EG-5.mzML",
+          "inputFiles": [
+            {
+              "name": "20220830_JL-4884_Forster_Ecoli_Suf_rep1_EG-5.mzML",
+              "location": "file:////hps/nobackup/juan/pride/topdown/PXD040621/20220830_JL-4884_Forster_Ecoli_Suf_rep1_EG-5.mzML",
+              "fileFormat": {
+                "accession": "MS:1000584",
+                "name": "mzML format"
+              }
+            }
+          ],
+          "analysisSoftware": [
+            {
+              "accession": "MS:1000799",
+              "name": "custom unreleased software tool",
+              "version": "0.1",
+              "description": "\"A software tool that has not yet been released. The value should describe the software. Please do not use this term for publicly available software - contact the PSI-MS working group in order to have another CV term added.\" [PSI:MS]"
+            },
+            {
+              "accession": "MS:1002869",
+              "name": "mzR",
+              "version": "2.34.1",
+              "description": "\"Bioconductor package mzR for reading and writing mass spectrometry data files.\" [PSI:PI]"
+            }
+          ]
+        },
+        "qualityMetrics": [
+          {
+            "accession": "MS:4000132",
+            "name": "MS1 ion collection time mean",
+            "description": "\"From the distribution of ion injection times (MS:1000927) for MS1, the mean\" [PSI:MS]",
+            "value": 12.9036
+          },
+          {
+            "accession": "MS:4000133",
+            "name": "MS1 ion collection time sigma",
+            "description": "\"From the distribution of ion injection times (MS:1000927) for MS1, the sigma value\" [PSI:MS]",
+            "value": 18.9932
+          },
+          {
+            "accession": "MS:4000137",
+            "name": "MS2 ion collection time mean",
+            "description": "\"From the distribution of ion injection times (MS:1000927) for MS2, the mean\" [PSI:MS]",
+            "value": 53.0324
+          },
+          {
+            "accession": "MS:4000138",
+            "name": "MS2 ion collection time sigma",
+            "description": "\"From the distribution of ion injection times (MS:1000927) for MS2, the sigma value\" [PSI:MS]",
+            "value": 15.9193
+          }
+        ]
+      }
+    ],
+    "controlledVocabularies": [
+      {
+        "name": "Proteomics Standards Initiative Mass Spectrometry Ontology",
+        "uri": "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.147/psi-ms.obo",
+        "version": "4.1.147"
+      }
+    ]
+  }
+} 

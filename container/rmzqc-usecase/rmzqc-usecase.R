@@ -1,12 +1,16 @@
 #!/usr/bin/env Rscript
 args = commandArgs(trailingOnly=TRUE)
 
+if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+if (!require("mzR", quietly = TRUE)) BiocManager::install("mzR")
+library("mzR")
+
+if (!require("rmzqc", quietly = TRUE)) install.packages("rmzqc")
 library(rmzqc)
-library(dplyr)
-library(tidyr)
-library(readr)
-library(ggplot2)
-library(MSnbase)
+if (packageVersion("rmzqc") < package_version("0.5.3")) stop("You need a newer rmzqc ... wait for CRAN to update")
+
+if (!require("data.table", quietly = TRUE)) install.packages("data.table")
+library(data.table)
 
 # test if there is at least one argument: if not, return an error
 if (length(args)==0) {
@@ -16,82 +20,53 @@ if (length(args)==0) {
   args[2] = "rmzqc-usecase.mzqc"
 }
 
-qcrunname = args[1] 
-if (!(endsWith(qcrunname, ".mzML"))){
+if (!(endsWith(args[1], ".mzML"))){
 	stop("Input file needs to be an mzML standard format file, abort.", call.=FALSE)
 }
 
-#irt input processing
-irts <- readr::read_delim("https://gist.github.com/mwalzer/518e70ca01238a540552929a54bacaa6/raw/4e2ae214cb106ad4bb2d234580dcbd0bd0ced686/biognosis_irts.csv", 
-                            delim = ",", escape_double = FALSE, 
-                            col_names = TRUE)
-irts <- irts %>% 
-  mutate(tol_10r = abs(5*(`Precursor m/z` * 1e-6) + `Precursor m/z`)) %>% 
-  mutate(tol_10l = abs(5*(`Precursor m/z` * 1e-6) - `Precursor m/z`))
+qcrunname = normalizePath(args[1]) 
+ms = openMSfile(qcrunname)
+hd = header(ms)
 
-#mzml processing
-run_msnbase <- readMSData(qcrunname, mode = "inMemory", verbose = FALSE, msLevel = 1)
-chrs <- chromatogram(run_msnbase, mz = as.matrix(irts %>% select(`tol_10l`,`tol_10r`)))  # , rt = rtr
-rrt <- sapply(chrs, function(x) as.data.frame(clean(x))$rtime[which.max(as.data.frame(clean(x))$intensity)][1])
-fit <- lm(rrt ~ irts$iRT)
+hdt = data.table(hd)
+IIS_MS1_mean = hdt[msLevel == 1, mean(injectionTime)]
+IIS_MS1_sd = hdt[msLevel == 1, sd(injectionTime)]
+IIS_MS2_mean = hdt[msLevel == 2, mean(injectionTime)]
+IIS_MS2_sd = hdt[msLevel == 2, sd(injectionTime)]
 
-rtr <- data.frame(rRT = rrt, iRT = irts$iRT)
-plt <- ggplot(rtr %>% mutate(fits=fit$fitted.values, se=fit$residuals^2), aes(x=iRT, y=rRT)) +
-  geom_point() +
-  geom_smooth(method = "lm") + 
-  geom_segment(aes(x = iRT, y = rRT,
-                   xend = iRT, yend = fits), 
-               alpha = 0.3) +
-  labs(x="iRT score", y="RT [s]") + 
-  geom_text(aes(x = min(iRT), y = max(rRT)-30, hjust = 0, parse =TRUE,
-      #label = bquote(paste("adj. R^2 =", format(summary(fit)$adj.r.squared,digits=4), sep = " ", collapse = NULL))
-      label = paste("adj. R^2 =", format(summary(fit)$adj.r.squared,digits=4), sep = " ", collapse = NULL)
-       )) +
-  geom_text(aes(x = min(iRT), y = max(rRT), hjust = 0,
-      label = paste("y =",format(round(fit$coefficients[[1]],2), nsmall = 2), "+", format(round(fit$coefficients[[2]],2), nsmall = 2), "x", 
-                    sep = " ", collapse = NULL)))
+uri_raw_file = localFileToURI(qcrunname)  ## we need a proper URI (i.e. no backslashes and a scheme, e.g. 'file:') otherwise writing will fail
+file_format = getCVTemplate(accession = filenameToCV(uri_raw_file))
 
-ggsave("rmzqc-usecase.png", plot=plt)
+software_this_script = toAnalysisSoftware(id = "MS:1000799", version = "0.1") ## custom script (this one right here)
+software_mzR = toAnalysisSoftware(id = "MS:1002869", version = as.character(packageVersion("mzR")))
 
-#"""metrics:
-#   * iRT calibration formula
-#   * iRT calibration adjusted r-squared
-#"""
-mes_qc <- MzQCcvParameter$new(accession="MS:4000xx1", 
-													name="iRT calibration formula", 
-													value=paste("y =", format(round(fit$coefficients[[1]],2), nsmall = 2), "+", 
-																		format(round(fit$coefficients[[2]],2), nsmall = 2), "x", sep = " ", collapse = NULL))
-																		
-meq_qc <- MzQCqualityMetric$new(accession="MS:4000xx2", 
-													name="iRT calibration adjusted r-squared", 
-													value=format(summary(fit)$adj.r.squared,digits=4))
+run_qc = MzQCrunQuality$new(
+          metadata = MzQCmetadata$new(label = basename(uri_raw_file),
+                                      inputFiles = 
+                                        list(MzQCinputFile$new(basename(uri_raw_file),
+                                          uri_raw_file,
+                                          file_format)),
+          analysisSoftware = list(software_this_script, software_mzR)),
+          qualityMetrics = list(toQCMetric(id = "MS:4000132", value = IIS_MS1_mean), ## MS1 ion collection time mean
+                                toQCMetric(id = "MS:4000133", value = IIS_MS1_sd), ## MS1 ion collection time sigma
+                                toQCMetric(id = "MS:4000137", value = IIS_MS2_mean), ## MS2 ion collection time mean
+                                toQCMetric(id = "MS:4000138", value = IIS_MS2_sd) ## MS2 ion collection time sigma
+                               )
+  )
 
-sw <- MzQCanalysisSoftware$new(uri="https://github.com/MS-Quality-hub/rmzqc", 
-                               version=paste("v0","1","0", sep=".", collapse = " "),
-                               accession="MS:1000531", name="software")
-
-file_format = getCVTemplate(accession = filenameToCV(qcrunname))
-inp <- MzQCinputFile$new(basename(qcrunname), qcrunname, file_format)
-isValidMzQC(inp)
-
-rq <- MzQCrunQuality$new(metadata = MzQCmetadata$new(label = "implementation-case demo",
-                                    inputFiles = list(inp),
-                                    analysisSoftware = list(sw)),
-                                qualityMetrics = list(mes_qc, meq_qc))
-isValidMzQC(rq)
-
-mymzqc <- MzQCmzQC$new(version = "1.0.0", 
-                        creationDate = MzQCDateTime$new(), 
-                        contactName = paste(Sys.info()["user"]), 
-                        contactAddress = "test@user.info", 
-                        description = "An rmzqc-usecase demonstration result.",
-                        runQualities = list(rq),
-                        setQualities = list(), 
-                    controlledVocabularies = list(getDefaultCV()))
-
-# mymzqc$runQualities <- list(rq)
-cat("Constructed file is valid?", isValidMzQC(mymzqc), '\n')
-writeMZQC(args[2], mymzqc)
+run_qc_list = list()
+run_qc_list = append(run_qc_list, run_qc)
+mzQC_document = MzQCmzQC$new(version = "1.0.0", 
+                             creationDate = MzQCDateTime$new(), 
+                             contactName = "Chris Bielow", 
+                             contactAddress = "chris.bielow@bsc.fu-berlin.de", 
+                             description = "Ion Injection times for PXD000455",
+                             runQualities = run_qc_list,
+                             setQualities = list(), 
+                             controlledVocabularies = list(getCVInfo()))
+  
+cat("Constructed file is valid?", isValidMzQC(mzQC_document), '\n')
+writeMZQC(args[2], mzQC_document)
 cat(args[2], "written to disk!", '\n')
 
 

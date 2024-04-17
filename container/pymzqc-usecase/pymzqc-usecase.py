@@ -178,7 +178,7 @@ def load_mzml(mzml_path: str) -> Run:
 
 	# some things need to come from the mzml directly via xpath
 	# Instrument Type
-	psi_ms_url = "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.148/psi-ms.obo"
+	psi_ms_url = "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.146/psi-ms.obo"
 	doc = etree.parse(mzml_path)
 	r = doc.xpath('/x:indexedmzML/x:mzML/x:referenceableParamGroupList/x:referenceableParamGroup/x:cvParam', namespaces={'x': "http://psi.hupo.org/ms/mzml"})
 	ms = pronto.Ontology(psi_ms_url, import_depth=0)
@@ -247,20 +247,28 @@ def calc_metric_ioncollection(run) -> qc.QualityMetric:
 
 def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
-	mcs =[len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['sequence'].to_list()]
+	ids_only["MS:1003044"] = [len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['sequence'].to_list()]
+
+	mc_or_greater = 3  # i.e. 3 missed cleavages or greater
+	ids_only["mc_group"] = np.where(ids_only["MS:1003044"] >= mc_or_greater, str(mc_or_greater), ids_only["MS:1003044"])
+	mc_agg = ids_only.groupby("mc_group").agg({'native_id': 'count'}).reset_index().rename(columns={"native_id":"NCIT:C150827", "mc_group": "MS:1003044"})
+
 	metric_value = qc.QualityMetric(accession="MS:4000180", name="table of missed cleavage counts", value={
-											'MS:1003169': ids_only['sequence'].to_list(),
-											"MS:1000767": ids_only['native_id'].to_list(), 
-											"MS:1000927": mcs})
+						"MS:1003044": mc_agg["MS:1003044"].to_list(),
+						"NCIT:C150827": mc_agg["NCIT:C150827"].to_list()})
 	return metric_value
 
 def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	SEARCH_ENGINE_FILTER_SETTINGS = 50
+
 	ids_only['mass_error_ppm'] = ids_only.apply(lambda row : 
 									getMassError(row['calculatedMassToCharge'], 
 						 						 row['experimentalMassToCharge']), axis = 1)\
 													.clip(-SEARCH_ENGINE_FILTER_SETTINGS,SEARCH_ENGINE_FILTER_SETTINGS)
+	
+	logging.debug(str(ids_only['mass_error_ppm'].to_list()))
+	
 	metric_value_mean = qc.QualityMetric(accession="MS:4000178", name="precursor ppm deviation mean", value=ids_only['mass_error_ppm'].mean())
 	metric_value_std = qc.QualityMetric(accession="MS:4000179", name="precursor ppm deviation sigma", value=ids_only['mass_error_ppm'].std())
 	return metric_value_mean, metric_value_std
@@ -322,9 +330,16 @@ def simple_qc_metric_calculator(mzml_input, crux_tide_index, crux_tide_search, m
 		'warn': logging.WARN }
 	logging.basicConfig(format='%(levelname)s:%(message)s', level=lev[log])
 
+
 	try:
+		logging.debug("starting")
+		logging.debug("loading "+str(mzml_input))
 		run = load_mzml(mzml_input)
+		logging.debug("loaded mzml")
+		logging.debug("loading "+str(crux_tide_index)+"@"+str(tide_index))
+		logging.debug("loading "+str(crux_tide_search)+"@"+str(tide_search))
 		run = load_ids(run, crux_tide_index, crux_tide_search, tide_index, tide_search, fdr)
+		logging.debug("loaded ids")
 	except Exception as e:
 		click.echo(e)
 		print_help()

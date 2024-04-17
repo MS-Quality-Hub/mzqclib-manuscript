@@ -33,6 +33,8 @@ class Run:
 	tide_decoy_file: str = ""  # tide-search decoy results file
 	tide_td_pair_file: str = ""  # tide-index target|decoy pair file
 	crema_fdr: int = 100  # FDR chosen for crema confidence filter
+	n_pep: int = 0
+	n_prot: int = 0
 	instrument_type: pronto.Term = None
 	checksum: str = ""
 
@@ -197,6 +199,7 @@ def load_mzml(mzml_path: str) -> Run:
 	return Run(run_name=name, start_time=strt, completion_time=cmplt, base_df=base, mzml_path=mzml_path, instrument_type=itype, checksum=chksm)
 
 def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str, tide_search:str, fdr: int=1) -> Run:
+	PROTON_AMU = 1.0073 
 	tide_target_file = os.path.join(crux_tide_search,tide_search+'.target.txt')
 	tide_decoy_file = os.path.join(crux_tide_search,tide_search+'.decoy.txt')
 	tide_td_pair_file = os.path.join(crux_tide_index,tide_index)
@@ -210,14 +213,20 @@ def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str
 		pep_df = pd.read_csv(tmpdirname+"/simp.crema.peptides.txt", sep="\t").rename(columns={"scan": "scan_id"})
 
 	pep_df = pep_df.merge(pd.read_csv(os.path.join(crux_tide_search,tide_search+'.target.txt'), sep="\t").rename(columns={"scan": "scan_id"})[['scan_id','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on='scan_id').rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
-	pep_df['calculatedMassToCharge'] = pep_df['peptide mass']/pep_df['charge']
+	pep_df['calculatedMassToCharge'] = (pep_df['peptide mass']+PROTON_AMU*pep_df['charge'])/pep_df['charge']
 
 	run.tide_target_file = tide_target_file
 	run.tide_decoy_file = tide_decoy_file
 	run.tide_td_pair_file = tide_td_pair_file
 	run.crema_fdr = fdr
-
+	# run.n_prot = len(prt_df[prt_df['accept']==True])
+	# run.n_pep = len(pep_df[pep_df['accept']==True])
+	run.n_prot = prt_df[prt_df['accept']==True]["protein id"].nunique()
+	run.n_pep = pep_df[pep_df['accept']==True]["sequence"].nunique()
 	run.id_df = pep_df[pep_df['accept']==True]
+
+	logging.debug("Registered proteins "+str(run.n_prot))
+	logging.debug("Registered peptides "+str(run.n_pep))
 	return run
 
 def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
@@ -267,8 +276,9 @@ def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 						 						 row['experimentalMassToCharge']), axis = 1)\
 													.clip(-SEARCH_ENGINE_FILTER_SETTINGS,SEARCH_ENGINE_FILTER_SETTINGS)
 	
-	logging.debug(str(ids_only['mass_error_ppm'].to_list()))
-	
+	logging.debug("theor. "+str(ids_only['calculatedMassToCharge'].to_list()[:10]))
+	logging.debug("measu. "+str(ids_only['experimentalMassToCharge'].to_list()[:10]))
+
 	metric_value_mean = qc.QualityMetric(accession="MS:4000178", name="precursor ppm deviation mean", value=ids_only['mass_error_ppm'].mean())
 	metric_value_std = qc.QualityMetric(accession="MS:4000179", name="precursor ppm deviation sigma", value=ids_only['mass_error_ppm'].std())
 	return metric_value_mean, metric_value_std
@@ -299,13 +309,12 @@ def calc_metric_idrate(run) -> Tuple[qc.QualityMetric]:
 	return cid,cms
 
 def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
-	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	peptide_id = qc.QualityMetric(accession="MS:1003250", 
 				 			name="count of identified peptidoforms", 
-							value= int(ids_only['sequence'].nunique()))
+							value= run.n_pep)
 	accession_id = qc.QualityMetric(accession="MS:1002404", 
 							name="count of identified proteins", 
-							value= int(ids_only['protein id'].nunique()))
+							value= run.n_prot)
 	return peptide_id,accession_id
 
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')

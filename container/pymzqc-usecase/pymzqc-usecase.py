@@ -178,7 +178,7 @@ def load_mzml(mzml_path: str) -> Run:
 
 	# some things need to come from the mzml directly via xpath
 	# Instrument Type
-	psi_ms_url = "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.130/psi-ms.obo"
+	psi_ms_url = "https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.148/psi-ms.obo"
 	doc = etree.parse(mzml_path)
 	r = doc.xpath('/x:indexedmzML/x:mzML/x:referenceableParamGroupList/x:referenceableParamGroup/x:cvParam', namespaces={'x': "http://psi.hupo.org/ms/mzml"})
 	ms = pronto.Ontology(psi_ms_url, import_depth=0)
@@ -248,7 +248,7 @@ def calc_metric_ioncollection(run) -> qc.QualityMetric:
 def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	mcs =[len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['sequence'].to_list()]
-	metric_value = qc.QualityMetric(accession="MS:4000005", name="enzyme digestion parameters", value={
+	metric_value = qc.QualityMetric(accession="MS:4000180", name="table of missed cleavage counts", value={
 											'MS:1003169': ids_only['sequence'].to_list(),
 											"MS:1000767": ids_only['native_id'].to_list(), 
 											"MS:1000927": mcs})
@@ -261,11 +261,10 @@ def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 									getMassError(row['calculatedMassToCharge'], 
 						 						 row['experimentalMassToCharge']), axis = 1)\
 													.clip(-SEARCH_ENGINE_FILTER_SETTINGS,SEARCH_ENGINE_FILTER_SETTINGS)
-	metric_value_mean = qc.QualityMetric(accession="MS:4000xxx", name="dppm mean", value=ids_only['mass_error_ppm'].mean())
-	metric_value_std = qc.QualityMetric(accession="MS:4000xxx", name="dppm sigma", value=ids_only['mass_error_ppm'].std())
+	metric_value_mean = qc.QualityMetric(accession="MS:4000178", name="precursor ppm deviation mean", value=ids_only['mass_error_ppm'].mean())
+	metric_value_std = qc.QualityMetric(accession="MS:4000179", name="precursor ppm deviation sigma", value=ids_only['mass_error_ppm'].std())
 	return metric_value_mean, metric_value_std
-	# TODO ??? add optional rt of ident ms2 column to id: MS:4000078 ! QC2 sample mass accuracies ???
-			    
+
 def calc_metric_idrtquarters(run) -> qc.QualityMetric:
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 
@@ -276,7 +275,7 @@ def calc_metric_idrtquarters(run) -> qc.QualityMetric:
 	quarter_interval_durations = idf_rtsort.groupby('quarter')['RT'].max() - idf_rtsort.groupby('quarter')['RT'].min()
 	ratios = quarter_interval_durations / run.base_df['RT'].max()
 
-	metric_value = qc.QualityMetric(accession="MS:4000xxx", 
+	metric_value = qc.QualityMetric(accession="MS:4000181", 
 								 name="identified MS2 quarter RT fraction",
 								 value=ratios.to_list())
 	return metric_value

@@ -32,7 +32,7 @@ class Run:
 	tide_target_file: str = ""  # tide-search target results file
 	tide_decoy_file: str = ""  # tide-search decoy results file
 	tide_td_pair_file: str = ""  # tide-index target|decoy pair file
-	crema_fdr: int = 100  # FDR chosen for crema confidence filter
+	crema_fdr: int = 100  # FDR chosen for crema confidence filter, init default is no filter
 	n_pep: int = 0
 	n_prot: int = 0
 	instrument_type: pronto.Term = None
@@ -212,18 +212,16 @@ def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str
 		prt_df = pd.read_csv(tmpdirname+"/simp.crema.proteins.txt", sep="\t")
 		pep_df = pd.read_csv(tmpdirname+"/simp.crema.peptides.txt", sep="\t").rename(columns={"scan": "scan_id"})
 
-	pep_df = pep_df.merge(pd.read_csv(os.path.join(crux_tide_search,tide_search+'.target.txt'), sep="\t").rename(columns={"scan": "scan_id"})[['scan_id','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on='scan_id').rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
+	pep_df = pep_df.merge(pd.read_csv(os.path.join(crux_tide_search,tide_search+'.target.txt'), sep="\t").rename(columns={"scan": "scan_id"})[['scan_id', 'sequence','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on=['scan_id', 'sequence']).rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
 	pep_df['calculatedMassToCharge'] = (pep_df['peptide mass']+PROTON_AMU*pep_df['charge'])/pep_df['charge']
 
 	run.tide_target_file = tide_target_file
 	run.tide_decoy_file = tide_decoy_file
 	run.tide_td_pair_file = tide_td_pair_file
 	run.crema_fdr = fdr
-	# run.n_prot = len(prt_df[prt_df['accept']==True])
-	# run.n_pep = len(pep_df[pep_df['accept']==True])
-	run.n_prot = prt_df[prt_df['accept']==True]["protein id"].nunique()
-	run.n_pep = pep_df[pep_df['accept']==True]["sequence"].nunique()
 	run.id_df = pep_df[pep_df['accept']==True]
+	run.n_prot = prt_df[prt_df['accept']==True]["protein id"].nunique()
+	run.n_pep = run.id_df["sequence"].nunique()
 
 	logging.debug("Registered proteins "+str(run.n_prot))
 	logging.debug("Registered peptides "+str(run.n_pep))
@@ -316,6 +314,7 @@ def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
 							name="count of identified proteins", 
 							value= run.n_prot)
 	return peptide_id,accession_id
+
 
 @click.command(short_help='correct_mgf_tabs will correct the peak data tab separation in any spectra of the mgf')
 @click.argument('mzml_input', type=click.Path(exists=True,readable=True) )  # help="The file with the spectra to analyse"

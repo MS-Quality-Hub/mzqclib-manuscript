@@ -41,7 +41,6 @@ class Run:
 def print_help():
 	"""
 	Print the help of the tool
-	:return:
 	"""
 	ctx = click.get_current_context()
 	click.echo(ctx.get_help())
@@ -199,21 +198,52 @@ def load_mzml(mzml_path: str) -> Run:
 	return Run(run_name=name, start_time=strt, completion_time=cmplt, base_df=base, mzml_path=mzml_path, instrument_type=itype, checksum=chksm)
 
 def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str, tide_search:str, fdr: int=1) -> Run:
+	"""
+	load_ids will load the tide identifications from file and perform FDR with crema and document all the provided Run dataclass
+	 
+	The function will also add experimentalMassToCharge and calculatedMassToCharge columns , 
+
+	Parameters
+	----------
+	crux_tide_index : str
+			Path of the tide index folder
+	
+	crux_tide_search : str
+			Path of the tide search results folder
+	
+	tide_index : str
+			The file name for the target decoy pairs file in the specified tide index folder
+
+	tide_search : str
+			The file name prefix for tide search results in the specified tide search results folder
+	
+	fdr : int
+			The FDR level choice in percent, defaults to 1
+
+	Returns
+	-------
+	Run
+			The Run dataclass with added spectrum identification details
+
+	"""
 	PROTON_AMU = 1.0073 
 	tide_target_file = os.path.join(crux_tide_search,tide_search+'.target.txt')
 	tide_decoy_file = os.path.join(crux_tide_search,tide_search+'.decoy.txt')
 	tide_td_pair_file = os.path.join(crux_tide_index,tide_index)
-	psms = crema.read_tide([tide_target_file, tide_decoy_file], 
-						pairing_file_name=tide_td_pair_file,
-						decoy_prefix='DECOY_')
-	results =  psms.assign_confidence(score_column="xcorr score", desc=True, pep_fdr_type="peptide-only", threshold=fdr/100)
-	with tempfile.TemporaryDirectory() as tmpdirname:
-		results.to_txt(output_dir=tmpdirname, file_root="simp", sep="\t", decoys=False)
-		prt_df = pd.read_csv(tmpdirname+"/simp.crema.proteins.txt", sep="\t")
-		pep_df = pd.read_csv(tmpdirname+"/simp.crema.peptides.txt", sep="\t").rename(columns={"scan": "scan_id"})
 
-	pep_df = pep_df.merge(pd.read_csv(os.path.join(crux_tide_search,tide_search+'.target.txt'), sep="\t").rename(columns={"scan": "scan_id"})[['scan_id', 'sequence','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on=['scan_id', 'sequence']).rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
-	pep_df['calculatedMassToCharge'] = (pep_df['peptide mass']+PROTON_AMU*pep_df['charge'])/pep_df['charge']
+	with open(tide_target_file, 'r') as targets, open(tide_decoy_file, 'r') as decoys:
+		#filter all but best PSM per scan
+		filtered_tide_target = pd.read_csv(targets, sep='\t').sort_values(by='xcorr score', ascending=False).groupby('scan').head(1)
+		filtered_tide_decoy = pd.read_csv(decoys, sep='\t').sort_values(by='xcorr score', ascending=False).groupby('scan').head(1)
+		#crema fdr
+		psms = crema.read_tide(pd.concat([filtered_tide_target, filtered_tide_decoy]), 
+							pairing_file_name=tide_td_pair_file,
+							decoy_prefix='DECOY_')
+		results =  psms.assign_confidence(score_column="xcorr score", desc=True, pep_fdr_type="peptide-only", threshold=fdr/100)
+		prt_df = results.confidence_estimates['proteins']
+		#add delta ppm per peptide and fix column names
+		pep_df = results.confidence_estimates['peptides'].rename(columns={"scan": "scan_id"}).merge(filtered_tide_target.rename(columns={"scan": "scan_id"})[['scan_id', 'sequence','charge','peptide mass', 'spectrum precursor m/z']], how="inner", on=['scan_id', 'sequence']).rename(columns={"spectrum precursor m/z": "experimentalMassToCharge"})
+		pep_df['calculatedMassToCharge'] = (pep_df['peptide mass']+PROTON_AMU*pep_df['charge'])/pep_df['charge']
 
 	run.tide_target_file = tide_target_file
 	run.tide_decoy_file = tide_decoy_file

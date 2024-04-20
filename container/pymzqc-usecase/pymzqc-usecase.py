@@ -23,6 +23,9 @@ A simple QC metric calculator in python using pymzqc to write mzQC output.
 
 @dataclass
 class Run:
+	"""
+	Simple dataclass to collect identification related QC information
+	"""
 	run_name: str = ""
 	start_time: datetime = datetime.now()
 	completion_time: datetime = datetime.now()
@@ -111,6 +114,19 @@ def getMassError(theo_mz: float, exp_mz: float, use_ppm: bool = True) -> float:
 	return error
 
 def getMetricSourceFramesBase(run: mzml.MzML) -> pd.DataFrame:     
+	"""
+	getMetricSourceFramesBase loads the input mzML into a pandas dataframe
+
+	Parameters
+	----------
+	run : mzml.MzML
+		The input mzML
+
+	Returns
+	-------
+	pd.DataFrame
+		The spectrum-per-row dataframe
+	"""
 	data_acquisition: Dict[str,List[Any]] = defaultdict(list)
 	mslevelcounts: Dict[int,int] = defaultdict(int)
 	ms2_only_padlist = ['precursor_int','precursor_c','precursor_mz','activation_method','activation_energy','isolation_window_target_mz','isolation_window_lower_offset','isolation_window_upper_offset']
@@ -171,6 +187,19 @@ def getMetricSourceFramesBase(run: mzml.MzML) -> pd.DataFrame:
 	return pd.DataFrame(data_acquisition)
 
 def load_mzml(mzml_path: str) -> Run:
+	"""
+	load_mzml is the high-level function to create and populate a Run dataclass  
+
+	Parameters
+	----------
+	mzml_path : str
+		The path to the mzml input file
+
+	Returns
+	-------
+	Run
+		The Run dataclass with mzml related info added
+	"""
 	name = os.path.splitext(os.path.basename(mzml_path))[0]
 
 	with mzml.read(mzml_path) as reader:
@@ -199,31 +228,31 @@ def load_mzml(mzml_path: str) -> Run:
 
 def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str, tide_search:str, fdr: int=1) -> Run:
 	"""
-	load_ids will load the tide identifications from file and perform FDR with crema and document all the provided Run dataclass
+	load_ids will load the tide identifications from file and perform FDR with crema and document all the provided Run dataclass.
 	 
-	The function will also add experimentalMassToCharge and calculatedMassToCharge columns , 
+	The function will also add experimentalMassToCharge and calculatedMassToCharge columns
 
 	Parameters
 	----------
 	crux_tide_index : str
-			Path of the tide index folder
+		Path of the tide index folder
 	
 	crux_tide_search : str
-			Path of the tide search results folder
+		Path of the tide search results folder
 	
 	tide_index : str
-			The file name for the target decoy pairs file in the specified tide index folder
+		The file name for the target decoy pairs file in the specified tide index folder
 
 	tide_search : str
-			The file name prefix for tide search results in the specified tide search results folder
+		The file name prefix for tide search results in the specified tide search results folder
 	
 	fdr : int
-			The FDR level choice in percent, defaults to 1
+		The FDR level choice in percent, defaults to 1
 
 	Returns
 	-------
 	Run
-			The Run dataclass with added spectrum identification details
+		The Run dataclass with added spectrum identification details
 
 	"""
 	PROTON_AMU = 1.0073 
@@ -257,7 +286,23 @@ def load_ids(run: Run, crux_tide_index:str, crux_tide_search:str, tide_index:str
 	logging.debug("Registered peptides "+str(run.n_pep))
 	return run
 
-def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
+def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]) -> qc.MzQcFile:
+	"""
+	construct_mzqc will create a mzqc object to export 
+
+	Parameters
+	----------
+	run : Run
+		The Run dataclass object with the necessary metadata
+
+	quality_metric_values : List[qc.QualityMetric]
+		The calculated metrics to be added to this run's mzqc representation
+
+	Returns
+	-------
+	qc.MzQcFile
+		An mzqc file object
+	"""
 	infi1 = qc.InputFile(name=run.mzml_path, location=run.mzml_path, fileFormat=qc.CvParameter("MS:1000584", "mzML format"))
 	infi1.fileProperties.append(qc.CvParameter("MS:1003151", "SHA-256", run.checksum))
 	infi1.fileProperties.append(qc.CvParameter(run.instrument_type.id, run.instrument_type.name))
@@ -272,7 +317,20 @@ def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]):
 		    contactAddress="https://github.com/MS-Quality-Hub/mzqclib-manuscript", runQualities=[rq], controlledVocabularies=[cv]) 
 	return mzqc
 
-def calc_metric_ioncollection(run) -> qc.QualityMetric:
+def calc_metric_ioncollection(run: Run) -> qc.QualityMetric:
+	"""
+	Calculates a ion collection metric for the input run
+
+	Parameters
+	----------
+	run : Run
+		The input run's Run dataclass
+
+	Returns
+	-------
+	qc.QualityMetric
+		The calculated metric's mzqc representation
+	"""
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	metric_value = qc.QualityMetric(accession="MS:4000105", name="ion injection parameters", value={
 											"MS:1000767": ids_only['native_id'].to_list(), 
@@ -282,7 +340,20 @@ def calc_metric_ioncollection(run) -> qc.QualityMetric:
 											"MS:1000501": (ids_only['isolation_window_target_mz'] - ids_only['isolation_window_lower_offset']).to_list()})
 	return metric_value
 
-def calc_metric_missedcleavage(run) -> qc.QualityMetric:
+def calc_metric_missedcleavage(run: Run) -> qc.QualityMetric:
+	"""
+	Calculates a missed cleavage metric for the input run
+
+	Parameters
+	----------
+	run : Run
+		The input run's Run dataclass
+
+	Returns
+	-------
+	qc.QualityMetric
+		The calculated metric's mzqc representation
+	"""
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	ids_only["MS:1003044"] = [len(fastaparser.cleave(seq, 'trypsin'))-1 for seq in ids_only['sequence'].to_list()]
 
@@ -295,7 +366,20 @@ def calc_metric_missedcleavage(run) -> qc.QualityMetric:
 						"NCIT:C150827": mc_agg["NCIT:C150827"].to_list()})
 	return metric_value
 
-def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
+def calc_metric_deltam(run: Run) -> Tuple[qc.QualityMetric]:
+	"""
+	Calculates mass error distribution metrics for the run's identification process
+
+	Parameters
+	----------
+	run : Run
+		The input run's Run dataclass
+
+	Returns
+	-------
+	Tuple[qc.QualityMetric]
+		The calculated metric's mzqc representations
+	"""
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	SEARCH_ENGINE_FILTER_SETTINGS = 50
 
@@ -311,7 +395,21 @@ def calc_metric_deltam(run) -> Tuple[qc.QualityMetric]:
 	metric_value_std = qc.QualityMetric(accession="MS:4000179", name="precursor ppm deviation sigma", value=ids_only['mass_error_ppm'].std())
 	return metric_value_mean, metric_value_std
 
-def calc_metric_idrtquarters(run) -> qc.QualityMetric:
+def calc_metric_idrtquarters(run: Run) -> qc.QualityMetric:
+	"""
+	Calculates a metric on the timely distribution of the run's identifications
+
+	Parameters
+	----------
+	run : Run
+		The input run's Run dataclass
+
+	Returns
+	-------
+	qc.QualityMetric
+		The calculated metric's mzqc representation
+
+	"""
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 
 	idf_rtsort = ids_only.sort_values(by='RT')
@@ -326,7 +424,21 @@ def calc_metric_idrtquarters(run) -> qc.QualityMetric:
 								 value=ratios.to_list())
 	return metric_value
 
-def calc_metric_idrate(run) -> Tuple[qc.QualityMetric]:
+def calc_metric_idrate(run: Run) -> Tuple[qc.QualityMetric]:
+	"""
+	Calculates metrics on the identification rate of the run
+
+	Parameters
+	----------
+	run : Run
+		The input run's Run dataclass
+
+	Returns
+	-------
+	Tuple[qc.QualityMetric]
+		The calculated metric's mzqc representations
+
+	"""
 	ids_only = run.base_df.merge(run.id_df, how="inner", on='scan_id')
 	cid = qc.QualityMetric(accession="MS:1003251", 
 				 			name="count of identified spectra", 
@@ -337,6 +449,19 @@ def calc_metric_idrate(run) -> Tuple[qc.QualityMetric]:
 	return cid,cms
 
 def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
+	"""
+	Calculates identification counts metrics for the run's identifications
+
+	Parameters
+	----------
+	run : Run
+		The input run's Run dataclass
+
+	Returns
+	-------
+	Tuple[qc.QualityMetric]
+		The calculated metric's mzqc representations
+	"""
 	peptide_id = qc.QualityMetric(accession="MS:1003250", 
 				 			name="count of identified peptidoforms", 
 							value= run.n_pep)
@@ -360,14 +485,25 @@ def calc_metric_idcounts(run) -> Tuple[qc.QualityMetric]:
 	required=False, help="Log detail level. (verbosity: debug>info>warn)")
 def simple_qc_metric_calculator(mzml_input, crux_tide_index, crux_tide_search, mzqc_output, fdr, tide_index, tide_search, dev, log):
 	"""
-	main function controlling command-line call parameters and calling high-level functions
+	Main function controlling command-line call parameters and calling high-level functions
+
+	Parameters
+	----------
+	mzml_input : spectra input
+	crux_tide_index : identification input
+	crux_tide_search : identification input
+	mzqc_output : output
+	fdr : identification input
+	tide_index : identification input
+	tide_search : identification input
+	dev : metric development flag
+	log : loglevel choice
 	"""
 	# set loglevel - switch to match-case for py3.10+
 	lev = {'debug': logging.DEBUG,
 		'info': logging.INFO,
 		'warn': logging.WARN }
 	logging.basicConfig(format='%(levelname)s:%(message)s', level=lev[log])
-
 
 	try:
 		logging.debug("starting")

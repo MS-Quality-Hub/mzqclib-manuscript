@@ -1,6 +1,6 @@
 {"mzQC": 
 {
-  "creationDate": "2024-04-21T18:50:16Z",
+  "creationDate": "2024-04-21T19:26:09Z",
   "version": "1.0.0",
   "contactName": "mwalzer",
   "contactAddress": "https://github.com/MS-Quality-Hub/mzqclib-manuscript",
@@ -105,7 +105,7 @@
         {
           "accession": "MS:1003251",
           "name": "count of identified spectra",
-          "value": 9888
+          "value": 17159
         },
         {
           "accession": "MS:4000060",

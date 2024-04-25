@@ -353,15 +353,17 @@ def construct_mzqc(run: Run, quality_metric_values: List[qc.QualityMetric]) -> q
         "MS:1000747", "completion time", run.completion_time))
     infi2 = qc.InputFile(name=run.tide_target_file, location=run.tide_target_file,
                          fileFormat=qc.CvParameter("MS:1000914", "tab delimited text format"))
+    anso0 = qc.AnalysisSoftware(accession="MS:1003145", name="ThermoRawFileParser", 
+                                version="1.4.0", uri="https://github.com/compomics/ThermoRawFileParser")
     anso1 = qc.AnalysisSoftware(
         accession="MS:1002575", name="Tide", version="4.2", uri="https://crux.ms/")
-    anso2 = qc.AnalysisSoftware(accession="MS:1003357", name="simple qc metric calculator",
+    anso2 = qc.AnalysisSoftware(accession="MS:1003399", name="quality control software", value="simple qc metric calculator",
                                 version="0", uri="https://github.com/MS-Quality-Hub/mzqclib-manuscript")
     meta = qc.MetaDataParameters(inputFiles=[infi1, infi2], analysisSoftware=[
-                                 anso1, anso2], label="implementation-case demo")
+                                 anso0, anso1, anso2], label="implementation-case demo")
     rq = qc.RunQuality(metadata=meta, qualityMetrics=quality_metric_values)
     cv = qc.ControlledVocabulary(
-        name="PSI-MS", uri="https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.130/psi-ms.obo", version="v4.1.130")
+        name="PSI-MS", uri="https://github.com/HUPO-PSI/psi-ms-CV/releases/download/v4.1.150/psi-ms.obo", version="v4.1.150")
     mzqc = qc.MzQcFile(version="1.0.0", description="Demo mzQC created from a simple qc metric calculator", contactName="mwalzer",
                        contactAddress="https://github.com/MS-Quality-Hub/mzqclib-manuscript", runQualities=[rq], controlledVocabularies=[cv])
     return mzqc

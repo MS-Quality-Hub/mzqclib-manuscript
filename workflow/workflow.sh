@@ -18,7 +18,7 @@ submission=PXD040621
 cd $workdir
 
 # Convert to mzML for all raw file images
-for f in *.raw; do singularity exec trfpsimg ThermoRawFileParser.sh -i=$f -f=2 -b=${f%.*}.mzML; done  
+for f in *.raw; do singularity exec $trfpsimg ThermoRawFileParser.sh -i=$f -f=2 -b=${f%.*}.mzML; done  
 
 # Identify spectra for each mzML
 singularity exec $pymzqcsimg crux tide-index --overwrite T --peptide-list T --enzyme trypsin --missed-cleavages 3 --decoy-prefix DECOY_ --output-dir $fasta.cti $fasta $fasta.cti
@@ -27,7 +27,7 @@ for f in *.mzML; do singularity exec $pymzqcsimg crux tide-search --overwrite T 
 # Calculate metrics for each mzML
 for f in *.mzML; do singularity exec $rmzqcsimg rmzqc-cli.sh $f ${f%.*}.rmzqc.mzqc; done
 for f in *.mzML; do singularity exec $jmzqcsimg jmzqc-cli.sh -f $f -o ${f%.*}.jmzqc.mzqc; done
-for f in *.mzML; do singularity exec $pymzqcsimg pymzqc-usecase.py $f ${f%.*}.mzid ${f%.*}.pymzqc.mzqc; done
+for f in *.mzML; do singularity exec $pymzqcsimg pymzqc-usecase.py $f $fasta.cti $f.cts ${f%.*}.pymzqc.mzqc; done
 
 # Merge all 
 singularity exec $pymzqcsimg pymzqc-merge.py *mzqc.mzqc $submission.mzqc
